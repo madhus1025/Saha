@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#cfe0d2"></stop><stop offset="1" stop-color="#bcd4c0"></stop></linearGradient></defs>
+  <rect width="512" height="512" fill="url(#bg)"></rect>
+  <ellipse cx="256" cy="236" rx="174" ry="178" fill="#5c4632"></ellipse>
+      <path d="M96 248 Q84 404 150 458 Q138 344 158 252 Z" fill="#5c4632"></path>
+      <path d="M416 248 Q428 404 362 458 Q374 344 354 252 Z" fill="#5c4632"></path>
+  <path d="M126 512 Q150 398 256 398 Q362 398 386 512 Z" fill="#3f5c49"></path>
+  <rect x="232" y="346" width="48" height="44" rx="20" fill="#f3d9c4"></rect>
+  <ellipse cx="256" cy="238" rx="150" ry="148" fill="#f3d9c4"></ellipse>
+  <ellipse cx="108" cy="262" rx="16" ry="20" fill="#f3d9c4"></ellipse>
+  <ellipse cx="404" cy="262" rx="16" ry="20" fill="#f3d9c4"></ellipse>
+  <path d="M104 246 Q100 110 256 100 Q412 110 408 246 Q372 184 316 194 Q300 146 256 146 Q212 146 196 194 Q140 184 104 246 Z" fill="#5c4632"></path>
+  <g transform="translate(372 176)"><circle r="11" fill="#3f5c49"></circle><circle cx="16" r="11" fill="#3f5c49"></circle><circle cx="8" cy="14" r="11" fill="#3f5c49"></circle><circle cx="8" cy="5" r="6" fill="#fff8ee"></circle></g>
+  <ellipse cx="160" cy="300" rx="26" ry="17" fill="#e7a98c" opacity="0.6"></ellipse>
+  <ellipse cx="352" cy="300" rx="26" ry="17" fill="#e7a98c" opacity="0.6"></ellipse>
+  <ellipse cx="192" cy="258" rx="26" ry="32" fill="#2d2622"></ellipse>
+  <ellipse cx="320" cy="258" rx="26" ry="32" fill="#2d2622"></ellipse>
+  <circle cx="183" cy="246" r="10" fill="#ffffff"></circle>
+  <circle cx="311" cy="246" r="10" fill="#ffffff"></circle>
+  <circle cx="200" cy="270" r="5" fill="#ffffff" opacity="0.9"></circle>
+  <circle cx="328" cy="270" r="5" fill="#ffffff" opacity="0.9"></circle>
+  <path d="M236 306 Q256 332 276 306 Z" fill="#a4544c"></path>
+  <path d="M249 316 Q256 324 263 316 Z" fill="#e89a92"></path>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#b9cdbd"></stop><stop offset="1" stop-color="#a3bca9"></stop></linearGradient></defs>
+  <rect width="512" height="512" fill="url(#bg)"></rect>
+
+  <path d="M126 512 Q150 398 256 398 Q362 398 386 512 Z" fill="#314a3a"></path>
+  <rect x="232" y="346" width="48" height="44" rx="20" fill="#edc7a6"></rect>
+  <ellipse cx="256" cy="238" rx="150" ry="148" fill="#edc7a6"></ellipse>
+  <ellipse cx="108" cy="262" rx="16" ry="20" fill="#edc7a6"></ellipse>
+  <ellipse cx="404" cy="262" rx="16" ry="20" fill="#edc7a6"></ellipse>
+  <path d="M110 248 Q106 108 256 98 Q406 108 402 248 Q386 172 330 168 Q300 144 256 144 Q212 144 182 168 Q126 172 110 248 Z" fill="#3a2c20"></path>
+  <path d="M256 98 Q248 64 278 58 Q290 76 276 96 Z" fill="#3a2c20"></path>
+  <ellipse cx="160" cy="300" rx="26" ry="17" fill="#d39b7c" opacity="0.6"></ellipse>
+  <ellipse cx="352" cy="300" rx="26" ry="17" fill="#d39b7c" opacity="0.6"></ellipse>
+  <ellipse cx="192" cy="258" rx="26" ry="32" fill="#2d2622"></ellipse>
+  <ellipse cx="320" cy="258" rx="26" ry="32" fill="#2d2622"></ellipse>
+  <circle cx="183" cy="246" r="10" fill="#ffffff"></circle>
+  <circle cx="311" cy="246" r="10" fill="#ffffff"></circle>
+  <circle cx="200" cy="270" r="5" fill="#ffffff" opacity="0.9"></circle>
+  <circle cx="328" cy="270" r="5" fill="#ffffff" opacity="0.9"></circle>
+  <path d="M236 306 Q256 332 276 306 Z" fill="#a4544c"></path>
+  <path d="M249 316 Q256 324 263 316 Z" fill="#e89a92"></path>
+</svg>

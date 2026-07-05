@@ -1,0 +1,22 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.DS_Store
+appsettings.Development.json
+appsettings.Production.json
+secrets.json
+*.pfx
+*.p12
+
+## Logs
+logs/
+*.log
+
+## Test results
+TestResults/
+coverage/
+*.coveragexml
+*.cobertura.xml

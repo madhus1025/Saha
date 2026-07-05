@@ -1,0 +1,59 @@
+# ──────────────────────────────────────────────────────────────
+# Saha — root .gitignore
+# ──────────────────────────────────────────────────────────────
+
+# ── .NET / Backend ──
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage-report/
+dependency-check-report/
+*.coverage
+*.coverage.cobertura.xml
+
+# Local SQLite databases (auto-created on first run)
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets — never commit real config
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+*.pfx
+*.key
+
+# ── Node / Frontend ──
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+*.local
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# ── Editors / OS ──
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+
+# ── Logs / env ──
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example

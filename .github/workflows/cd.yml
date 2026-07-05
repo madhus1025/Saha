@@ -1,0 +1,278 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '20'
+  AZURE_RESOURCE_GROUP: rg-saha-prod
+  AZURE_LOCATION: eastus2
+  APP_SERVICE_NAME: app-saha-api-prod
+  STATIC_WEB_APP_NAME: stapp-saha-prod
+
+jobs:
+  provision:
+    name: Provision Azure Infrastructure
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    outputs:
+      api_url: ${{ steps.deploy.outputs.apiUrl }}
+      static_web_app_url: ${{ steps.deploy.outputs.staticWebAppUrl }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep infrastructure
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infrastructure/bicep/main.bicep
+          parameters: >-
+            environment=${{ github.event.inputs.environment || 'production' }}
+            sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+          deploymentName: saha-${{ github.run_number }}
+          failOnStdErr: false
+
+  migrate-database:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: provision
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Build solution
+        run: dotnet build backend/Saha.sln --configuration Release
+
+      - name: Run migrations
+        working-directory: backend/src/Saha.API
+        run: |
+          dotnet ef database update \
+            --project ../Saha.Infrastructure/Saha.Infrastructure.csproj \
+            --startup-project . \
+            --configuration Release \
+            --no-build
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.SQL_CONNECTION_STRING }}
+          ASPNETCORE_ENVIRONMENT: Production
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: migrate-database
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish backend
+        run: |
+          dotnet publish backend/src/Saha.API/Saha.API.csproj \
+            --configuration Release \
+            --output ./publish \
+            --no-self-contained \
+            --runtime linux-x64
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          package: ./publish
+
+      - name: Configure App Service settings
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          app-settings-json: |
+            [
+              { "name": "ASPNETCORE_ENVIRONMENT",              "value": "Production",                          "slotSetting": false },
+              { "name": "ConnectionStrings__DefaultConnection", "value": "${{ secrets.SQL_CONNECTION_STRING }}", "slotSetting": false },
+              { "name": "JwtSettings__SecretKey",               "value": "${{ secrets.JWT_SECRET_KEY }}",        "slotSetting": false },
+              { "name": "JwtSettings__Issuer",                  "value": "${{ secrets.JWT_ISSUER }}",            "slotSetting": false },
+              { "name": "JwtSettings__Audience",                "value": "${{ secrets.JWT_AUDIENCE }}",          "slotSetting": false },
+              { "name": "SmtpSettings__Host",                   "value": "${{ secrets.SMTP_HOST }}",             "slotSetting": false },
+              { "name": "SmtpSettings__Port",                   "value": "${{ secrets.SMTP_PORT }}",             "slotSetting": false },
+              { "name": "SmtpSettings__Username",               "value": "${{ secrets.SMTP_USERNAME }}",         "slotSetting": false },
+              { "name": "SmtpSettings__Password",               "value": "${{ secrets.SMTP_PASSWORD }}",         "slotSetting": false },
+              { "name": "SmtpSettings__FromEmail",              "value": "${{ secrets.SMTP_FROM_EMAIL }}",       "slotSetting": false },
+              { "name": "SmtpSettings__FromName",               "value": "Saha",                         "slotSetting": false },
+              { "name": "AzureStorage__ConnectionString",        "value": "${{ secrets.STORAGE_CONNECTION_STRING }}", "slotSetting": false },
+              { "name": "AzureStorage__ContainerName",           "value": "profile-pictures",                    "slotSetting": false },
+              { "name": "Cors__AllowedOrigins__0",               "value": "${{ secrets.FRONTEND_URL }}",          "slotSetting": false },
+              { "name": "ApplicationInsights__ConnectionString",  "value": "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}", "slotSetting": false }
+            ]
+
+      - name: Verify backend health
+        run: |
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.APP_SERVICE_NAME }}.azurewebsites.net/health)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS, retrying in 15s..."
+            sleep 15
+          done
+          echo "Backend health check failed after 10 attempts"
+          exit 1
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_APP_TITLE: Saha
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Static Web App deployment token
+        id: get-token
+        run: |
+          TOKEN=$(az staticwebapp secrets list \
+            --name ${{ env.STATIC_WEB_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.apiKey" --output tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.get-token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend/dist
+          skip_app_build: true
+
+  post-deployment-tests:
+    name: Post-Deployment Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-frontend
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        working-directory: frontend
+        run: npx playwright test --project=chromium --grep "@smoke"
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.FRONTEND_URL }}
+
+      - name: Upload smoke test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-report
+          path: frontend/playwright-report/
+
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, post-deployment-tests]
+    if: always()
+
+    steps:
+      - name: Notify on success
+        if: needs.post-deployment-tests.result == 'success'
+        run: |
+          echo "Deployment to ${{ github.event.inputs.environment || 'production' }} succeeded"
+          echo "Commit: ${{ github.sha }}"
+          echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Notify on failure
+        if: needs.post-deployment-tests.result != 'success'
+        run: |
+          echo "Deployment to ${{ github.event.inputs.environment || 'production' }} failed"
+          echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          exit 1

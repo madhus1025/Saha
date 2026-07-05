@@ -1,0 +1,206 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using Saha.Domain.Entities;
+using Saha.Domain.Interfaces.Services;
+using Saha.Domain.ValueObjects;
+using Saha.Infrastructure.Persistence;
+using Saha.Infrastructure.Persistence.Repositories;
+using Xunit;
+
+namespace Saha.Infrastructure.Tests.Persistence.Repositories;
+
+public sealed class CoupleRepositoryTests : IDisposable
+{
+    private readonly ApplicationDbContext _context;
+    private readonly CoupleRepository _repository;
+    private readonly IDateTimeProvider _dateTimeProvider;
+
+    public CoupleRepositoryTests()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+        _dateTimeProvider.UtcNow.Returns(DateTimeOffset.UtcNow);
+
+        _context = new ApplicationDbContext(options);
+        _repository = new CoupleRepository(_context);
+    }
+
+    [Fact]
+    public async Task AddAsync_ShouldPersistCouple()
+    {
+        var couple = CreateTestCouple("ALPHA-BETA");
+
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var found = await _context.Couples.FindAsync(couple.Id);
+        found.Should().NotBeNull();
+        found!.TogetherID.Value.Should().Be("ALPHA-BETA");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ShouldReturnCouple_WhenExists()
+    {
+        var couple = CreateTestCouple("CHARLIE-DELTA");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var result = await _repository.GetByIdAsync(couple.Id);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(couple.Id);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ShouldReturnNull_WhenNotExists()
+    {
+        var result = await _repository.GetByIdAsync(Guid.NewGuid());
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetByTogetherIDAsync_ShouldReturnCouple_WhenExists()
+    {
+        var couple = CreateTestCouple("ECHO-FOXTROT");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var result = await _repository.GetByTogetherIDAsync(TogetherID.Create("ECHO-FOXTROT"));
+
+        result.Should().NotBeNull();
+        result!.TogetherID.Value.Should().Be("ECHO-FOXTROT");
+    }
+
+    [Fact]
+    public async Task GetByUsernameAsync_ShouldReturnCouple_WhenHusbandMatches()
+    {
+        var couple = CreateTestCouple("GOLF-HOTEL");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var result = await _repository.GetByUsernameAsync(Username.Create("husbanduser"));
+
+        result.Should().NotBeNull();
+        result!.Husband.Username.Value.Should().Be("husbanduser");
+    }
+
+    [Fact]
+    public async Task GetByUsernameAsync_ShouldReturnCouple_WhenWifeMatches()
+    {
+        var couple = CreateTestCouple("INDIA-JULIET");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var result = await _repository.GetByUsernameAsync(Username.Create("wifeuser"));
+
+        result.Should().NotBeNull();
+        result!.Wife.Username.Value.Should().Be("wifeuser");
+    }
+
+    [Fact]
+    public async Task ExistsByTogetherIDAsync_ShouldReturnTrue_WhenExists()
+    {
+        var couple = CreateTestCouple("KILO-LIMA");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var exists = await _repository.ExistsByTogetherIDAsync(TogetherID.Create("KILO-LIMA"));
+
+        exists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExistsByTogetherIDAsync_ShouldReturnFalse_WhenNotExists()
+    {
+        var exists = await _repository.ExistsByTogetherIDAsync(TogetherID.Create("MIKE-NOVEMBER"));
+
+        exists.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExistsByUsernameAsync_ShouldReturnTrue_WhenExists()
+    {
+        var couple = CreateTestCouple("OSCAR-PAPA");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var exists = await _repository.ExistsByUsernameAsync(Username.Create("husbanduser"));
+
+        exists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ShouldPersistChanges()
+    {
+        var couple = CreateTestCouple("QUEBEC-ROMEO");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        couple.ChangePassword("newhashvalue");
+        await _repository.UpdateAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var updated = await _repository.GetByIdAsync(couple.Id);
+        updated!.PasswordHash.Should().Be("newhashvalue");
+    }
+
+    [Fact]
+    public async Task SearchByTogetherIDAsync_ShouldReturnMatchingCouples()
+    {
+        var couple1 = CreateTestCouple("SIERRA-TANGO");
+        var couple2 = CreateTestCouple("SIERRA-UNIFORM");
+        var couple3 = CreateTestCouple("VICTOR-WHISKEY");
+        await _repository.AddAsync(couple1);
+        await _repository.AddAsync(couple2);
+        await _repository.AddAsync(couple3);
+        await _context.SaveChangesAsync();
+
+        var results = await _repository.SearchByTogetherIDAsync("SIERRA", 10);
+
+        results.Should().HaveCount(2);
+        results.Should().AllSatisfy(c => c.TogetherID.Value.Should().StartWith("SIERRA"));
+    }
+
+    [Fact]
+    public async Task GetByRefreshTokenHashAsync_ShouldReturnCouple_WhenActiveTokenExists()
+    {
+        var couple = CreateTestCouple("XRAY-YANKEE");
+        var tokenHash = "testhash123456789012345678901234567890123456789012345678901234";
+        couple.AddRefreshToken(tokenHash, couple.Husband.Id, DateTimeOffset.UtcNow.AddDays(30), "127.0.0.1");
+        await _repository.AddAsync(couple);
+        await _context.SaveChangesAsync();
+
+        var result = await _repository.GetByRefreshTokenHashAsync(tokenHash);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(couple.Id);
+    }
+
+    private static Couple CreateTestCouple(string togetherId)
+    {
+        return Couple.Register(
+            togetherId: TogetherID.Create(togetherId),
+            passwordHash: "hashedpassword",
+            husbandName: "Test Husband",
+            husbandDob: new DateOnly(1990, 1, 1),
+            husbandEmail: EmailAddress.Create($"husband-{togetherId.ToLower()}@test.com"),
+            husbandPhone: PhoneNumber.Create("+11234567890"),
+            husbandUsername: Username.Create("husbanduser"),
+            wifeName: "Test Wife",
+            wifeDob: new DateOnly(1992, 6, 15),
+            wifeEmail: EmailAddress.Create($"wife-{togetherId.ToLower()}@test.com"),
+            wifePhone: PhoneNumber.Create("+19876543210"),
+            wifeUsername: Username.Create("wifeuser")
+        );
+    }
+
+    public void Dispose()
+    {
+        _context.Dispose();
+    }
+}
