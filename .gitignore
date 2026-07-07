@@ -57,3 +57,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Local-only deployment/session notes — never commit
+*.local.md
+AZURE_DEPLOYMENT_LOG.local.md

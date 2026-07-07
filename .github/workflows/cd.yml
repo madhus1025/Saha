@@ -8,10 +8,10 @@ on:
       environment:
         description: 'Deployment environment'
         required: true
-        default: 'production'
+        default: 'prod'
         type: choice
         options:
-          - production
+          - prod
           - staging
 
 permissions:
@@ -25,16 +25,16 @@ concurrency:
 env:
   DOTNET_VERSION: '9.0.x'
   NODE_VERSION: '20'
-  AZURE_RESOURCE_GROUP: rg-saha-prod
-  AZURE_LOCATION: eastus2
-  APP_SERVICE_NAME: app-saha-api-prod
-  STATIC_WEB_APP_NAME: stapp-saha-prod
+  AZURE_LOCATION: centralus
+  AZURE_RESOURCE_GROUP: rg-saha-${{ github.event.inputs.environment || 'prod' }}
+  APP_SERVICE_NAME: app-saha-api-${{ github.event.inputs.environment || 'prod' }}
+  STATIC_WEB_APP_NAME: stapp-saha-${{ github.event.inputs.environment || 'prod' }}
 
 jobs:
   provision:
     name: Provision Azure Infrastructure
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
     outputs:
       api_url: ${{ steps.deploy.outputs.apiUrl }}
       static_web_app_url: ${{ steps.deploy.outputs.staticWebAppUrl }}
@@ -57,8 +57,13 @@ jobs:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
           template: infrastructure/bicep/main.bicep
           parameters: >-
-            environment=${{ github.event.inputs.environment || 'production' }}
+            environment=${{ github.event.inputs.environment || 'prod' }}
+            location=${{ env.AZURE_LOCATION }}
+            sqlAdminLogin=${{ secrets.SQL_ADMIN_LOGIN }}
             sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+            jwtSecretKey=${{ secrets.JWT_SECRET_KEY }}
+            sendGridApiKey=${{ secrets.SMTP_PASSWORD }}
+            frontendUrl=${{ secrets.FRONTEND_URL }}
           deploymentName: saha-${{ github.run_number }}
           failOnStdErr: false
 
@@ -66,7 +71,7 @@ jobs:
     name: Run Database Migrations
     runs-on: ubuntu-latest
     needs: provision
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +103,7 @@ jobs:
     name: Deploy Backend
     runs-on: ubuntu-latest
     needs: migrate-database
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -137,17 +142,17 @@ jobs:
             [
               { "name": "ASPNETCORE_ENVIRONMENT",              "value": "Production",                          "slotSetting": false },
               { "name": "ConnectionStrings__DefaultConnection", "value": "${{ secrets.SQL_CONNECTION_STRING }}", "slotSetting": false },
-              { "name": "JwtSettings__SecretKey",               "value": "${{ secrets.JWT_SECRET_KEY }}",        "slotSetting": false },
-              { "name": "JwtSettings__Issuer",                  "value": "${{ secrets.JWT_ISSUER }}",            "slotSetting": false },
-              { "name": "JwtSettings__Audience",                "value": "${{ secrets.JWT_AUDIENCE }}",          "slotSetting": false },
-              { "name": "SmtpSettings__Host",                   "value": "${{ secrets.SMTP_HOST }}",             "slotSetting": false },
-              { "name": "SmtpSettings__Port",                   "value": "${{ secrets.SMTP_PORT }}",             "slotSetting": false },
-              { "name": "SmtpSettings__Username",               "value": "${{ secrets.SMTP_USERNAME }}",         "slotSetting": false },
-              { "name": "SmtpSettings__Password",               "value": "${{ secrets.SMTP_PASSWORD }}",         "slotSetting": false },
-              { "name": "SmtpSettings__FromEmail",              "value": "${{ secrets.SMTP_FROM_EMAIL }}",       "slotSetting": false },
-              { "name": "SmtpSettings__FromName",               "value": "Saha",                         "slotSetting": false },
+              { "name": "Jwt__SecretKey",                       "value": "${{ secrets.JWT_SECRET_KEY }}",        "slotSetting": false },
+              { "name": "Jwt__Issuer",                          "value": "${{ secrets.JWT_ISSUER }}",            "slotSetting": false },
+              { "name": "Jwt__Audience",                        "value": "${{ secrets.JWT_AUDIENCE }}",          "slotSetting": false },
+              { "name": "Smtp__Host",                           "value": "${{ secrets.SMTP_HOST }}",             "slotSetting": false },
+              { "name": "Smtp__Port",                           "value": "${{ secrets.SMTP_PORT }}",             "slotSetting": false },
+              { "name": "Smtp__Username",                       "value": "${{ secrets.SMTP_USERNAME }}",         "slotSetting": false },
+              { "name": "Smtp__Password",                       "value": "${{ secrets.SMTP_PASSWORD }}",         "slotSetting": false },
+              { "name": "Smtp__SenderEmail",                    "value": "${{ secrets.SMTP_FROM_EMAIL }}",       "slotSetting": false },
+              { "name": "Smtp__SenderName",                     "value": "Saha",                         "slotSetting": false },
               { "name": "AzureStorage__ConnectionString",        "value": "${{ secrets.STORAGE_CONNECTION_STRING }}", "slotSetting": false },
-              { "name": "AzureStorage__ContainerName",           "value": "profile-pictures",                    "slotSetting": false },
+              { "name": "AzureStorage__ProfilePicturesContainer", "value": "profile-pictures",                    "slotSetting": false },
               { "name": "Cors__AllowedOrigins__0",               "value": "${{ secrets.FRONTEND_URL }}",          "slotSetting": false },
               { "name": "ApplicationInsights__ConnectionString",  "value": "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}", "slotSetting": false }
             ]
@@ -170,7 +175,7 @@ jobs:
     name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: deploy-backend
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -223,7 +228,7 @@ jobs:
     name: Post-Deployment Smoke Tests
     runs-on: ubuntu-latest
     needs: deploy-frontend
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -266,13 +271,13 @@ jobs:
       - name: Notify on success
         if: needs.post-deployment-tests.result == 'success'
         run: |
-          echo "Deployment to ${{ github.event.inputs.environment || 'production' }} succeeded"
+          echo "Deployment to ${{ github.event.inputs.environment || 'prod' }} succeeded"
           echo "Commit: ${{ github.sha }}"
           echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Notify on failure
         if: needs.post-deployment-tests.result != 'success'
         run: |
-          echo "Deployment to ${{ github.event.inputs.environment || 'production' }} failed"
+          echo "Deployment to ${{ github.event.inputs.environment || 'prod' }} failed"
           echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           exit 1

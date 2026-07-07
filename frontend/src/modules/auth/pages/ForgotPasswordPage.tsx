@@ -9,6 +9,8 @@ import { Button } from '@/shared/components/ui/Button'
 import { authApi } from '@/core/api/auth.api'
 import { toast } from '@/shared/hooks/use-toast'
 import { motion } from 'framer-motion'
+import { telemetry } from '@/core/telemetry/telemetry.service'
+import { FORGOT_PASSWORD_CLICKED } from '@/core/telemetry/events'
 
 const schema = z.object({
   togetherIDOrUsername: z
@@ -25,7 +27,10 @@ export function ForgotPasswordPage() {
   })
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => authApi.forgotPassword(values),
+    mutationFn: (values: FormValues) => {
+      telemetry.track(FORGOT_PASSWORD_CLICKED)
+      return authApi.forgotPassword(values)
+    },
     onSuccess: () => {
       toast({
         title: 'Code sent!',

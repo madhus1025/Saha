@@ -32,7 +32,7 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'me' | 'partner'>('me')
   const queryClient = useQueryClient()
   const { updateProfilePicture, role } = useAuthStore()
-  const { enterPartnerView, isViewingAsPartner, exitPartnerView } = usePartnerViewStore()
+  const { enterPartnerView, isViewingAsPartner } = usePartnerViewStore()
 
   const { data: myProfile, isLoading: myLoading } = useQuery({
     queryKey: queryKeys.profile.me,

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +9,8 @@ import { Button } from '@/shared/components/ui/Button'
 import { registerSchema, type RegisterFormValues } from '../schemas/register.schema'
 import { useRegister } from '../hooks/useRegister'
 import { cn } from '@/core/utils/cn'
+import { telemetry } from '@/core/telemetry/telemetry.service'
+import { REGISTER_PAGE_VIEWED } from '@/core/telemetry/events'
 
 const STEPS = ['Together', 'Husband', 'Wife', 'Password'] as const
 type Step = 0 | 1 | 2 | 3
@@ -17,6 +19,11 @@ export function RegisterPage() {
   const [step, setStep] = useState<Step>(0)
   const [showPassword, setShowPassword] = useState(false)
   const register_ = useRegister()
+
+  // Track page view once on mount — measures top-of-registration funnel
+  useEffect(() => {
+    telemetry.track(REGISTER_PAGE_VIEWED)
+  }, [])
 
   const {
     register,

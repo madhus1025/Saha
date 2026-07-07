@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import { Search, UserPlus, Check, X, Clock } from 'lucide-react'
 import { connectApi } from '@/core/api/connect.api'
 import { queryKeys } from '@/core/constants/query-keys'

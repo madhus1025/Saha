@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
-import { useAuthStore } from '@/shared/stores/auth.store'
 import { PartnerViewBanner } from './PartnerViewBanner'
 import { useState } from 'react'
 

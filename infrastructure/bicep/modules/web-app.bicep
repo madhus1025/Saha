@@ -3,6 +3,7 @@ param location string
 param tags object
 param serverFarmId string
 param sqlConnectionString string
+param alwaysOn bool = true
 
 @secure()
 param jwtSecretKey string
@@ -18,6 +19,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   name: name
   location: location
   tags: tags
+  kind: 'app,linux'
   identity: {
     type: 'SystemAssigned'
   }
@@ -25,8 +27,8 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: serverFarmId
     httpsOnly: true
     siteConfig: {
-      netFrameworkVersion: 'v9.0'
-      alwaysOn: true
+      linuxFxVersion: 'DOTNETCORE|9.0'
+      alwaysOn: alwaysOn
       http20Enabled: true
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'

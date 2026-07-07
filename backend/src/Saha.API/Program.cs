@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
+using Serilog.Sinks.Grafana.Loki;
 using Saha.API.Extensions;
 using Saha.API.Middleware;
 using Saha.Application;
@@ -30,6 +31,41 @@ try
             config.WriteTo.ApplicationInsights(
                 context.Configuration["ApplicationInsights:ConnectionString"],
                 TelemetryConverter.Traces);
+        }
+
+        // ── Grafana Loki ─────────────────────────────────────────────────────
+        var lokiUri       = context.Configuration["Grafana:LokiUri"];
+        var lokiLogin     = context.Configuration["Grafana:LokiLogin"];
+        var lokiPassword  = context.Configuration["Grafana:LokiPassword"];
+
+        if (!string.IsNullOrWhiteSpace(lokiUri) && !string.IsNullOrWhiteSpace(lokiLogin))
+        {
+            Console.WriteLine($"[TELEMETRY] Configuring Grafana Loki sink to {lokiUri} with login {lokiLogin}");
+            try
+            {
+                config.WriteTo.GrafanaLoki(lokiUri,
+                    credentials: new Serilog.Sinks.Grafana.Loki.LokiCredentials
+                    {
+                        Login    = lokiLogin,
+                        Password = lokiPassword ?? string.Empty,
+                    },
+                    labels:
+                    [
+                        new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "service_name", Value = "saha-api" },
+                        new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "environment",  Value = context.HostingEnvironment.EnvironmentName },
+                    ],
+                    propertiesAsLabels: ["MachineName"]);
+                Console.WriteLine("[TELEMETRY] Grafana Loki sink configured successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TELEMETRY ERROR] Failed to configure Loki sink: {ex.Message}");
+                Console.WriteLine($"[TELEMETRY ERROR] Stack: {ex.StackTrace}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[TELEMETRY] Skipping Loki configuration - Uri:{string.IsNullOrWhiteSpace(lokiUri)}, Login:{string.IsNullOrWhiteSpace(lokiLogin)}");
         }
     });
 

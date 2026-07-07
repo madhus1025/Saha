@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
+using Saha.Application.Telemetry;
 using Saha.Domain.Entities;
 using RefreshTokenEntity = Saha.Domain.Entities.RefreshToken;
 using Saha.Domain.Interfaces.Repositories;
@@ -17,6 +19,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
     private readonly IAuditLogger _auditLogger;
     private readonly ICurrentUserContext _currentUser;
     private readonly IConfiguration _configuration;
+    private readonly AuthMetrics _authMetrics;
 
     public LoginCommandHandler(
         ICoupleRepository coupleRepository,
@@ -24,7 +27,8 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         ITokenService tokenService,
         IAuditLogger auditLogger,
         ICurrentUserContext currentUser,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        AuthMetrics authMetrics)
     {
         _coupleRepository = coupleRepository;
         _passwordHasher = passwordHasher;
@@ -32,15 +36,22 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         _auditLogger = auditLogger;
         _currentUser = currentUser;
         _configuration = configuration;
+        _authMetrics = authMetrics;
     }
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
+        var sw = Stopwatch.StartNew();
+        _authMetrics.RecordLoginAttempt();
+
         var couple = await _coupleRepository.GetByUsernameWithTokensAsync(
             request.Username.ToLowerInvariant(), cancellationToken);
 
         if (couple is null || !_passwordHasher.Verify(request.Password, couple.PasswordHash))
         {
+            sw.Stop();
+            _authMetrics.RecordLoginFailure("INVALID_CREDENTIALS", sw.Elapsed.TotalMilliseconds);
+
             await _auditLogger.LogAsync(
                 action: "LOGIN_FAILED",
                 isSuccess: false,
@@ -54,6 +65,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
 
         if (!couple.IsActive)
         {
+            sw.Stop();
+            _authMetrics.RecordLoginFailure("ACCOUNT_INACTIVE", sw.Elapsed.TotalMilliseconds);
+
             await _auditLogger.LogAsync(
                 action: "LOGIN_FAILED",
                 isSuccess: false,
@@ -86,6 +100,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
 
         couple.AddRefreshToken(refreshToken);
         await _coupleRepository.UpdateAsync(couple, cancellationToken);
+
+        sw.Stop();
+        _authMetrics.RecordLoginSuccess(sw.Elapsed.TotalMilliseconds);
 
         await _auditLogger.LogAsync(
             action: "LOGIN_SUCCESS",

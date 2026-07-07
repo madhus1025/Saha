@@ -1,6 +1,9 @@
+using System.Diagnostics;
 using MediatR;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Saha.Application.Common.Interfaces;
+using Saha.Application.Telemetry;
 using Saha.Domain.Interfaces.Repositories;
 using Saha.Domain.Interfaces.Services;
 
@@ -14,6 +17,8 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
     private readonly IAuditLogger _auditLogger;
     private readonly ICurrentUserContext _currentUser;
     private readonly IConfiguration _configuration;
+    private readonly AuthMetrics _authMetrics;
+    private readonly ILogger<ForgotPasswordCommandHandler> _logger;
 
     public ForgotPasswordCommandHandler(
         ICoupleRepository coupleRepository,
@@ -21,7 +26,9 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         IPasswordHasher passwordHasher,
         IAuditLogger auditLogger,
         ICurrentUserContext currentUser,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        AuthMetrics authMetrics,
+        ILogger<ForgotPasswordCommandHandler> logger)
     {
         _coupleRepository = coupleRepository;
         _emailService = emailService;
@@ -29,10 +36,14 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         _auditLogger = auditLogger;
         _currentUser = currentUser;
         _configuration = configuration;
+        _authMetrics = authMetrics;
+        _logger = logger;
     }
 
     public async Task Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
+        _authMetrics.RecordForgotPasswordRequest();
+
         var input = request.TogetherIDOrUsername.Trim();
 
         var couple = input.Contains('-')
@@ -71,7 +82,25 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
                 PlainTextBody: BuildEmailText(code, couple.Wife.Name, ttlMinutes))
         };
 
-        await _emailService.SendToMultipleAsync(emailMessages, cancellationToken);
+        // ── Email send with accurate latency measurement ─────────────────────
+        _authMetrics.RecordResetEmailTriggered(emailMessages.Length);
+        var emailSw = Stopwatch.StartNew();
+        try
+        {
+            await _emailService.SendToMultipleAsync(emailMessages, cancellationToken);
+            emailSw.Stop();
+            _authMetrics.RecordResetEmailSent(emailMessages.Length, emailSw.Elapsed.TotalMilliseconds);
+            _authMetrics.RecordForgotPasswordSuccess();
+        }
+        catch (Exception ex)
+        {
+            emailSw.Stop();
+            _authMetrics.RecordResetEmailFailed(emailMessages.Length, emailSw.Elapsed.TotalMilliseconds);
+            _logger.LogError(ex,
+                "Failed to send password-reset emails for CoupleId={CoupleId} after {ElapsedMs}ms",
+                couple.Id, emailSw.ElapsedMilliseconds);
+            // Do not rethrow: the HTTP response must be 204 (enumeration-attack prevention)
+        }
 
         await _auditLogger.LogAsync(
             action: "PASSWORD_RESET_REQUESTED",

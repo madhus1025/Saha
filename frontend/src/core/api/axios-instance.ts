@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/shared/stores/auth.store'
+import { getTraceparentHeader } from '@/core/telemetry/otel'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -18,6 +19,14 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Propagate W3C trace context so backend OTel traces can link to
+    // the browser-side span that triggered this request.
+    const traceparent = getTraceparentHeader()
+    if (traceparent) {
+      config.headers['traceparent'] = traceparent
+    }
+
     return config
   },
   (error) => Promise.reject(error),

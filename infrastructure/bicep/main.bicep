@@ -38,14 +38,14 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
     name: 'asp-${resourceSuffix}'
     location: location
     tags: tags
-    sku: environment == 'prod' ? 'P1v3' : 'B1'
+    sku: environment == 'prod' ? 'P1v3' : 'F1'
   }
 }
 
 module webApp 'modules/web-app.bicep' = {
   name: 'webApp'
   params: {
-    name: 'app-${resourceSuffix}'
+    name: 'app-${appName}-api-${environment}'
     location: location
     tags: tags
     serverFarmId: appServicePlan.outputs.id
@@ -56,6 +56,7 @@ module webApp 'modules/web-app.bicep' = {
     sendGridApiKey: sendGridApiKey
     storageConnectionString: storageAccount.outputs.connectionString
     frontendUrl: frontendUrl
+    alwaysOn: environment == 'prod'
   }
 }
 
@@ -74,7 +75,7 @@ module sqlServer 'modules/sql-server.bicep' = {
 module storageAccount 'modules/storage-account.bicep' = {
   name: 'storageAccount'
   params: {
-    name: 'st${replace(resourceSuffix, '-', '')}${uniqueString(resourceGroup().id)}'
+    name: 'st${replace(resourceSuffix, '-', '')}${substring(uniqueString(resourceGroup().id), 0, 8)}'
     location: location
     tags: tags
   }
@@ -83,7 +84,7 @@ module storageAccount 'modules/storage-account.bicep' = {
 module staticWebApp 'modules/static-web-app.bicep' = {
   name: 'staticWebApp'
   params: {
-    name: 'swa-${resourceSuffix}'
+    name: 'stapp-${resourceSuffix}'
     location: location
     tags: tags
   }

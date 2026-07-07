@@ -1,11 +1,17 @@
+using System.Reflection;
 using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Saha.API.Middleware;
 using Saha.Application.Common.Interfaces;
+using Saha.Application.Telemetry;
 
 namespace Saha.API.Extensions;
 
@@ -66,6 +72,15 @@ public static class ServiceCollectionExtensions
                 limiter.Window = TimeSpan.FromMinutes(1);
                 limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                 limiter.QueueLimit = 5;
+            });
+
+            // Separate limiter for the frontend telemetry ingest endpoint
+            options.AddFixedWindowLimiter("telemetry", limiter =>
+            {
+                limiter.PermitLimit = 60; // 60 batches/min per IP (≈1/second)
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                limiter.QueueLimit = 0;
             });
 
             options.OnRejected = async (context, cancellationToken) =>
@@ -138,6 +153,57 @@ public static class ServiceCollectionExtensions
 
         services.AddControllers();
 
+        // ── OpenTelemetry: traces → Grafana Tempo, metrics → Grafana Mimir ────
+        AddOpenTelemetry(services, configuration);
+
         return services;
+    }
+
+    private static void AddOpenTelemetry(IServiceCollection services, IConfiguration configuration)
+    {
+        var otlpEndpoint = configuration["Grafana:OtlpEndpoint"];
+        var otlpHeaders  = configuration["Grafana:OtlpHeaders"]; // "Authorization=Basic base64(instanceId:token)"
+
+        // Skip OTel setup when no endpoint is configured (local dev without Grafana Cloud)
+        if (string.IsNullOrWhiteSpace(otlpEndpoint)) return;
+
+        var serviceVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+
+        services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource
+                .AddService(
+                    serviceName:        "saha-api",
+                    serviceVersion:     serviceVersion,
+                    serviceInstanceId:  Environment.MachineName))
+            .WithTracing(tracing => tracing
+                .AddAspNetCoreInstrumentation(opts =>
+                {
+                    opts.RecordException = true;
+                    // Skip health-check noise
+                    opts.Filter = ctx => !ctx.Request.Path.StartsWithSegments("/health");
+                })
+                .AddHttpClientInstrumentation(opts =>
+                {
+                    opts.RecordException = true;
+                })
+                .AddOtlpExporter(opts =>
+                {
+                    opts.Endpoint = new Uri(otlpEndpoint + "/v1/traces");
+                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    if (!string.IsNullOrWhiteSpace(otlpHeaders))
+                        opts.Headers = otlpHeaders;
+                }))
+            .WithMetrics(metrics => metrics
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                // Pick up the Saha.Auth meter created by AuthMetrics
+                .AddMeter(AuthMetrics.MeterName)
+                .AddOtlpExporter(opts =>
+                {
+                    opts.Endpoint = new Uri(otlpEndpoint + "/v1/metrics");
+                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    if (!string.IsNullOrWhiteSpace(otlpHeaders))
+                        opts.Headers = otlpHeaders;
+                }));
     }
 }

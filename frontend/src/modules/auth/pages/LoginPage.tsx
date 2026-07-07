@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, User, Lock } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { Input } from '@/shared/components/ui/Input'
 import { Button } from '@/shared/components/ui/Button'
 import { loginSchema, type LoginFormValues } from '../schemas/login.schema'
 import { useLogin } from '../hooks/useLogin'
+import { telemetry } from '@/core/telemetry/telemetry.service'
+import { LOGIN_PAGE_VIEWED } from '@/core/telemetry/events'
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const login = useLogin()
+
+  // Track page view once on mount — measures top-of-funnel
+  useEffect(() => {
+    telemetry.track(LOGIN_PAGE_VIEWED)
+  }, [])
 
   const {
     register,
