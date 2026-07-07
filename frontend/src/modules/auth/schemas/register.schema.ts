@@ -31,7 +31,7 @@ export const registerSchema = z
       .min(3, 'Together ID must be at least 3 characters')
       .max(50, 'Together ID cannot exceed 50 characters')
       .regex(
-        /^[A-Z0-9][A-Z0-9\-]{1,48}[A-Z0-9]$/,
+        /^[A-Z0-9][A-Z0-9-]{1,48}[A-Z0-9]$/,
         'Must contain only uppercase letters, numbers, and hyphens',
       ),
     husbandUsername: usernameSchema,
