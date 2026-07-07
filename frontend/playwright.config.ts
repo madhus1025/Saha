@@ -24,12 +24,10 @@ export default defineConfig({
     { name: 'Mobile Safari', use: { ...devices['iPhone 12'] } },
   ],
 
-  webServer: process.env['CI']
-    ? undefined
-    : {
-        command: 'npm run dev',
-        url: 'http://localhost:5173',
-        reuseExistingServer: !process.env['CI'],
-        timeout: 30000,
-      },
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env['CI'],
+    timeout: 30000,
+  },
 })
