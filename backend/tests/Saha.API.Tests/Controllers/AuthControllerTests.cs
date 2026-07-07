@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Saha.API.Tests.Infrastructure;
 using Xunit;
 
@@ -20,25 +21,39 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     public AuthControllerTests(SahaWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = factory.CreateClient();
+
+        // Each test gets its own host (via WithWebHostBuilder) built from the shared factory,
+        // so the "auth" rate limiter's in-memory counters don't carry over between tests while
+        // still reusing the same in-memory database configured on the shared factory instance.
+        //
+        // The refresh-token cookie is marked Secure; CookieContainer only attaches Secure
+        // cookies to https requests, so the test client must talk to the TestServer over https.
+        _client = factory.WithWebHostBuilder(_ => { }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
     }
 
     [Fact]
     public async Task Register_ShouldReturn201_WhenValidRequest()
     {
-        var request = BuildRegisterRequest("TEST-REGISTER01");
+        var request = BuildRegisterRequest("TEST-REGISTER01",
+            husbandUser: "registerhusbnd", wifeUser: "registerwife",
+            husbandEmail: "registerhusband@test.com", wifeEmail: "registerwife@test.com");
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        body.GetProperty("togetherId").GetString().Should().Be("TEST-REGISTER01");
+        body.GetProperty("togetherID").GetString().Should().Be("TEST-REGISTER01");
     }
 
     [Fact]
     public async Task Register_ShouldReturn409_WhenTogetherIDAlreadyExists()
     {
-        var request = BuildRegisterRequest("DUPLICATE-ID01");
+        var request = BuildRegisterRequest("DUPLICATE-ID01",
+            husbandUser: "duphusbnd", wifeUser: "dupwife",
+            husbandEmail: "duphusband@test.com", wifeEmail: "dupwife@test.com");
         await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
         var duplicateRequest = BuildRegisterRequest("DUPLICATE-ID01", husbandUser: "otherhusband", wifeUser: "otherwife",
@@ -62,7 +77,8 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     public async Task Login_ShouldReturn200AndSetRefreshCookie_WhenValidCredentials()
     {
         var togetherId = "LOGIN-TEST01";
-        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId));
+        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
+            husbandUser: "loginhusbnd", wifeUser: "loginwife"));
 
         var loginRequest = new { username = "loginhusbnd", password = "SecurePass@123!" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
@@ -72,8 +88,8 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         body.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
 
         var setCookieHeader = response.Headers.FirstOrDefault(h => h.Key == "Set-Cookie");
-        setCookieHeader.Value.Should().Contain("X-Refresh-Token");
-        setCookieHeader.Value.Should().Contain("HttpOnly");
+        setCookieHeader.Value.Should().Contain(v => v.Contains("X-Refresh-Token"));
+        setCookieHeader.Value.Should().Contain(v => v.Contains("httponly", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -90,7 +106,9 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     public async Task Login_ShouldIdentifyCorrectPartner_WhenHusbandLogsIn()
     {
         var togetherId = "PARTNER-ID01";
-        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId));
+        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
+            husbandUser: "partnerhusbnd", wifeUser: "partnerwife1",
+            husbandEmail: "partnerhusband1@test.com", wifeEmail: "partnerwife1@test.com"));
 
         var loginRequest = new { username = "partnerhusbnd", password = "SecurePass@123!" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
@@ -127,7 +145,7 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         var loginRequest = new { username = "refreshhusbnd", password = "SecurePass@123!" };
         await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
 
-        var response = await _client.PostAsync("/api/v1/auth/refresh-token", null);
+        var response = await _client.PostAsync("/api/v1/auth/refresh", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -156,26 +174,26 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     }
 
     [Fact]
-    public async Task ForgotPassword_ShouldReturn200_WhenTogetherIDExists()
+    public async Task ForgotPassword_ShouldReturn204_WhenTogetherIDExists()
     {
         var togetherId = "FORGOT-TEST01";
         await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
             husbandUser: "forgothusbnd", wifeUser: "forgotwife",
             husbandEmail: "forghusband@test.com", wifeEmail: "forgwife@test.com"));
 
-        var request = new { togetherId = "FORGOT-TEST01" };
+        var request = new { togetherIDOrUsername = "FORGOT-TEST01" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/forgot-password", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task ForgotPassword_ShouldReturn200_EvenWhenTogetherIDDoesNotExist()
+    public async Task ForgotPassword_ShouldReturn204_EvenWhenTogetherIDDoesNotExist()
     {
-        var request = new { togetherId = "NONEXISTENT-ID" };
+        var request = new { togetherIDOrUsername = "NONEXISTENT-ID" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/forgot-password", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -183,7 +201,7 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     {
         _client.DefaultRequestHeaders.Authorization = null;
 
-        var response = await _client.GetAsync("/api/v1/profile");
+        var response = await _client.GetAsync("/api/v1/profile/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -208,24 +226,18 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         string wifeEmail = "wife@test.com") =>
         new
         {
-            togetherId,
+            togetherID = togetherId,
             password = "SecurePass@123!",
             confirmPassword = "SecurePass@123!",
-            husband = new
-            {
-                name = "Test Husband",
-                dateOfBirth = "1990-01-01",
-                email = husbandEmail,
-                phoneNumber = "+11234567890",
-                username = husbandUser
-            },
-            wife = new
-            {
-                name = "Test Wife",
-                dateOfBirth = "1992-06-15",
-                email = wifeEmail,
-                phoneNumber = "+19876543210",
-                username = wifeUser
-            }
+            husbandUsername = husbandUser,
+            husbandName = "Test Husband",
+            husbandDateOfBirth = "1990-01-01",
+            husbandEmail,
+            husbandPhoneNumber = "+11234567890",
+            wifeUsername = wifeUser,
+            wifeName = "Test Wife",
+            wifeDateOfBirth = "1992-06-15",
+            wifeEmail,
+            wifePhoneNumber = "+19876543210"
         };
 }

@@ -3,6 +3,7 @@ using NSubstitute;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
 using Saha.Application.Features.Auth.Commands.Register;
+using Saha.Application.Telemetry;
 using Saha.Domain.Interfaces.Repositories;
 using Saha.Domain.Interfaces.Services;
 using Xunit;
@@ -29,7 +30,7 @@ public sealed class RegisterCoupleCommandHandlerTests
         _currentUser.UserAgent.Returns("test-agent");
 
         _handler = new RegisterCoupleCommandHandler(
-            _coupleRepository, _passwordHasher, _auditLogger, _currentUser);
+            _coupleRepository, _passwordHasher, _auditLogger, _currentUser, new AuthMetrics());
     }
 
     private static RegisterCoupleCommand ValidCommand() => new(
@@ -119,13 +120,13 @@ public sealed class RegisterCoupleCommandHandlerTests
             action: "COUPLE_REGISTERED",
             isSuccess: true,
             coupleId: Arg.Any<Guid?>(),
-            cancellationToken: Arg.Any<CancellationToken>(),
-            details: Arg.Any<string?>(),
-            errorCode: Arg.Any<string?>(),
-            ipAddress: Arg.Any<string?>(),
             partnerId: Arg.Any<Guid?>(),
-            resourceId: Arg.Any<Guid?>(),
             resourceType: Arg.Any<string?>(),
-            userAgent: Arg.Any<string?>());
+            resourceId: Arg.Any<Guid?>(),
+            details: Arg.Any<string?>(),
+            ipAddress: Arg.Any<string?>(),
+            userAgent: Arg.Any<string?>(),
+            errorCode: Arg.Any<string?>(),
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 }

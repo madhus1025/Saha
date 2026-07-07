@@ -1,10 +1,11 @@
 using FluentAssertions;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Saha.Domain.Entities;
-using Saha.Domain.Interfaces.Services;
 using Saha.Domain.ValueObjects;
 using Saha.Infrastructure.Persistence;
+using Saha.Infrastructure.Persistence.Interceptors;
 using Saha.Infrastructure.Persistence.Repositories;
 using Xunit;
 
@@ -14,7 +15,6 @@ public sealed class CoupleRepositoryTests : IDisposable
 {
     private readonly ApplicationDbContext _context;
     private readonly CoupleRepository _repository;
-    private readonly IDateTimeProvider _dateTimeProvider;
 
     public CoupleRepositoryTests()
     {
@@ -22,10 +22,9 @@ public sealed class CoupleRepositoryTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _dateTimeProvider = Substitute.For<IDateTimeProvider>();
-        _dateTimeProvider.UtcNow.Returns(DateTimeOffset.UtcNow);
-
-        _context = new ApplicationDbContext(options);
+        var mediator = Substitute.For<IMediator>();
+        _context = new ApplicationDbContext(
+            options, mediator, new AuditableEntityInterceptor(), new DomainEventDispatchInterceptor(mediator));
         _repository = new CoupleRepository(_context);
     }
 
@@ -39,7 +38,7 @@ public sealed class CoupleRepositoryTests : IDisposable
 
         var found = await _context.Couples.FindAsync(couple.Id);
         found.Should().NotBeNull();
-        found!.TogetherID.Value.Should().Be("ALPHA-BETA");
+        found!.TogetherID.Should().Be("ALPHA-BETA");
     }
 
     [Fact]
@@ -73,7 +72,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         var result = await _repository.GetByTogetherIDAsync(TogetherID.Create("ECHO-FOXTROT"));
 
         result.Should().NotBeNull();
-        result!.TogetherID.Value.Should().Be("ECHO-FOXTROT");
+        result!.TogetherID.Should().Be("ECHO-FOXTROT");
     }
 
     [Fact]
@@ -86,7 +85,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         var result = await _repository.GetByUsernameAsync(Username.Create("husbanduser"));
 
         result.Should().NotBeNull();
-        result!.Husband.Username.Value.Should().Be("husbanduser");
+        result!.Husband.Username.Should().Be("husbanduser");
     }
 
     [Fact]
@@ -99,7 +98,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         var result = await _repository.GetByUsernameAsync(Username.Create("wifeuser"));
 
         result.Should().NotBeNull();
-        result!.Wife.Username.Value.Should().Be("wifeuser");
+        result!.Wife.Username.Should().Be("wifeuser");
     }
 
     [Fact]
@@ -163,7 +162,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         var results = await _repository.SearchByTogetherIDAsync("SIERRA", 10);
 
         results.Should().HaveCount(2);
-        results.Should().AllSatisfy(c => c.TogetherID.Value.Should().StartWith("SIERRA"));
+        results.Should().AllSatisfy(c => c.TogetherID.Should().StartWith("SIERRA"));
     }
 
     [Fact]
@@ -171,7 +170,8 @@ public sealed class CoupleRepositoryTests : IDisposable
     {
         var couple = CreateTestCouple("XRAY-YANKEE");
         var tokenHash = "testhash123456789012345678901234567890123456789012345678901234";
-        couple.AddRefreshToken(tokenHash, couple.Husband.Id, DateTimeOffset.UtcNow.AddDays(30), "127.0.0.1");
+        couple.AddRefreshToken(RefreshToken.Create(
+            couple.Id, couple.Husband.Id, tokenHash, DateTime.UtcNow.AddDays(30), "127.0.0.1"));
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
@@ -181,18 +181,26 @@ public sealed class CoupleRepositoryTests : IDisposable
         result!.Id.Should().Be(couple.Id);
     }
 
+    [Fact]
+    public async Task GetByUsernameWithTokensAsync_ShouldReturnNull_WhenNotExists()
+    {
+        var result = await _repository.GetByUsernameWithTokensAsync("nonexistentuser");
+
+        result.Should().BeNull();
+    }
+
     private static Couple CreateTestCouple(string togetherId)
     {
         return Couple.Register(
             togetherId: TogetherID.Create(togetherId),
             passwordHash: "hashedpassword",
             husbandName: "Test Husband",
-            husbandDob: new DateOnly(1990, 1, 1),
+            husbandDob: new DateTime(1990, 1, 1),
             husbandEmail: EmailAddress.Create($"husband-{togetherId.ToLower()}@test.com"),
             husbandPhone: PhoneNumber.Create("+11234567890"),
             husbandUsername: Username.Create("husbanduser"),
             wifeName: "Test Wife",
-            wifeDob: new DateOnly(1992, 6, 15),
+            wifeDob: new DateTime(1992, 6, 15),
             wifeEmail: EmailAddress.Create($"wife-{togetherId.ToLower()}@test.com"),
             wifePhone: PhoneNumber.Create("+19876543210"),
             wifeUsername: Username.Create("wifeuser")

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Saha.Application.Common.Interfaces;
@@ -19,10 +20,15 @@ public sealed class SahaWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            var dbDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-            if (dbDescriptor is not null)
-                services.Remove(dbDescriptor);
+            // AddDbContext registers the SqlServer provider both as DbContextOptions<T> and as a
+            // separate IDbContextOptionsConfiguration<T> descriptor; removing only the former still
+            // leaves the SqlServer provider registered alongside InMemory, which EF Core rejects.
+            var dbDescriptors = services.Where(
+                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
+                     d.ServiceType == typeof(IDbContextOptionsConfiguration<ApplicationDbContext>))
+                .ToList();
+            foreach (var descriptor in dbDescriptors)
+                services.Remove(descriptor);
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));

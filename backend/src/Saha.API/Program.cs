@@ -111,7 +111,11 @@ try
 
     app.UseMiddleware<CurrentUserContextMiddleware>();
 
-    app.MapControllers().RequireRateLimiting("api");
+    // Default "api" rate-limit policy comes from [EnableRateLimiting("api")] on ApiControllerBase.
+    // Don't also apply RequireRateLimiting() here: endpoint-convention metadata is appended after
+    // attribute metadata, so it would win over action-level [EnableRateLimiting("auth")] overrides
+    // (e.g. on login/register) and silently defeat the tighter auth rate limit.
+    app.MapControllers();
 
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
         .AllowAnonymous();
