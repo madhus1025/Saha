@@ -1,7 +1,4 @@
-import { chromium } from '@playwright/test'
-
 const MAILPIT_URL = 'http://localhost:8025'
-const BACKEND_URL = 'https://localhost:7001'
 
 export default async function globalSetup() {
   // Verify Mailpit is running
