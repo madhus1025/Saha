@@ -111,9 +111,16 @@
   had `otherCoupleId`) so the create-group / add-couple UI can reference connected couples by id. Additive;
   Connect handler tests still pass (41/1 pre-existing).
 - **Frontend tests:** `npm run build` (tsc -b + vite) ✅. `vitest run` → **25 passed** (16 pre-existing + 9
-  new: `utils.test.ts` ×5, `ConversationList.test.tsx` ×4). E2E `tests/e2e/messages/messages.spec.ts` → **5
-  passed** on chromium (list renders, open thread, send, mobile no-overlap, unauth→login). NB: the app's own
-  `/messages` route also ends in `/messages`, so E2E route mocks must scope predicates to `/conversations`.
+  new: `utils.test.ts` ×5, `ConversationList.test.tsx` ×4).
+- **E2E (comprehensive, §16):** `tests/e2e/messages/messages.spec.ts` → **20 tests, green on all 5 Playwright
+  projects** (chromium, firefox, webkit, Mobile Chrome, Mobile Safari = 100 runs). Backed by a **stateful**
+  fake backend (`messaging-fixtures.ts::setupMessagingApi`) so mutation→invalidation→refetch behaves like the
+  real app. Covers: sidebar reachability, list + partner-pinned-first, open thread, send text, **create group
+  (connected)** + **unconnected-couple-unavailable** + **4 participants**, **owner rename** / **non-owner
+  rename control hidden** / **add eligible couple**, **edit own** / **delete own (tombstone)** / **non-sender
+  has no edit-delete controls**, **react → change → remove**, **pin/unpin**, **hide (per-couple)**, **photo
+  message renders**, mobile no-overlap, unauth→login. NB: the app's own `/messages` route also ends in
+  `/messages`, so E2E route mocks scope predicates to `/conversations`.
 - **Project lint (`npm run lint`) is broken repo-wide** (ESLint 9 installed but no `eslint.config.js` flat
   config present) — pre-existing tooling gap, not introduced here; `tsc -b` is the working type gate.
 
