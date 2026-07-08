@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(find ~ -maxdepth 3 -iname \"Saha\" -type d 2>/dev/null)",
+      "Read(//Users/madhuavinash/**)"
+    ]
+  }
+}
