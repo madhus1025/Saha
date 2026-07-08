@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Saha.Domain.Entities;
+using Saha.Domain.ValueObjects;
 using Saha.Infrastructure.Persistence;
 using Saha.Infrastructure.Persistence.Interceptors;
 using Saha.Infrastructure.Persistence.Repositories;
@@ -23,10 +24,7 @@ public sealed class CoupleRepositoryTests : IDisposable
 
         var mediator = Substitute.For<IMediator>();
         _context = new ApplicationDbContext(
-            options,
-            mediator,
-            new AuditableEntityInterceptor(),
-            new DomainEventDispatchInterceptor(mediator));
+            options, mediator, new AuditableEntityInterceptor(), new DomainEventDispatchInterceptor(mediator));
         _repository = new CoupleRepository(_context);
     }
 
@@ -71,7 +69,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
-        var result = await _repository.GetByTogetherIDAsync("ECHO-FOXTROT");
+        var result = await _repository.GetByTogetherIDAsync(TogetherID.Create("ECHO-FOXTROT"));
 
         result.Should().NotBeNull();
         result!.TogetherID.Should().Be("ECHO-FOXTROT");
@@ -84,7 +82,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
-        var result = await _repository.GetByUsernameAsync("husbanduser");
+        var result = await _repository.GetByUsernameAsync(Username.Create("husbanduser"));
 
         result.Should().NotBeNull();
         result!.Husband.Username.Should().Be("husbanduser");
@@ -97,7 +95,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
-        var result = await _repository.GetByUsernameAsync("wifeuser");
+        var result = await _repository.GetByUsernameAsync(Username.Create("wifeuser"));
 
         result.Should().NotBeNull();
         result!.Wife.Username.Should().Be("wifeuser");
@@ -110,7 +108,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
-        var exists = await _repository.ExistsByTogetherIDAsync("KILO-LIMA");
+        var exists = await _repository.ExistsByTogetherIDAsync(TogetherID.Create("KILO-LIMA"));
 
         exists.Should().BeTrue();
     }
@@ -118,7 +116,7 @@ public sealed class CoupleRepositoryTests : IDisposable
     [Fact]
     public async Task ExistsByTogetherIDAsync_ShouldReturnFalse_WhenNotExists()
     {
-        var exists = await _repository.ExistsByTogetherIDAsync("MIKE-NOVEMBER");
+        var exists = await _repository.ExistsByTogetherIDAsync(TogetherID.Create("MIKE-NOVEMBER"));
 
         exists.Should().BeFalse();
     }
@@ -130,7 +128,7 @@ public sealed class CoupleRepositoryTests : IDisposable
         await _repository.AddAsync(couple);
         await _context.SaveChangesAsync();
 
-        var exists = await _repository.ExistsByUsernameAsync("husbanduser");
+        var exists = await _repository.ExistsByUsernameAsync(Username.Create("husbanduser"));
 
         exists.Should().BeTrue();
     }
@@ -183,21 +181,29 @@ public sealed class CoupleRepositoryTests : IDisposable
         result!.Id.Should().Be(couple.Id);
     }
 
+    [Fact]
+    public async Task GetByUsernameWithTokensAsync_ShouldReturnNull_WhenNotExists()
+    {
+        var result = await _repository.GetByUsernameWithTokensAsync("nonexistentuser");
+
+        result.Should().BeNull();
+    }
+
     private static Couple CreateTestCouple(string togetherId)
     {
         return Couple.Register(
-            togetherId: togetherId,
-            husbandUsername: "husbanduser",
+            togetherId: TogetherID.Create(togetherId),
+            passwordHash: "hashedpassword",
             husbandName: "Test Husband",
             husbandDob: new DateTime(1990, 1, 1),
-            husbandEmail: $"husband-{togetherId.ToLower()}@test.com",
-            husbandPhone: "+11234567890",
-            wifeUsername: "wifeuser",
+            husbandEmail: EmailAddress.Create($"husband-{togetherId.ToLower()}@test.com"),
+            husbandPhone: PhoneNumber.Create("+11234567890"),
+            husbandUsername: Username.Create("husbanduser"),
             wifeName: "Test Wife",
             wifeDob: new DateTime(1992, 6, 15),
-            wifeEmail: $"wife-{togetherId.ToLower()}@test.com",
-            wifePhone: "+19876543210",
-            passwordHash: "hashedpassword"
+            wifeEmail: EmailAddress.Create($"wife-{togetherId.ToLower()}@test.com"),
+            wifePhone: PhoneNumber.Create("+19876543210"),
+            wifeUsername: Username.Create("wifeuser")
         );
     }
 

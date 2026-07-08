@@ -81,7 +81,7 @@ test.describe('Dashboard (authenticated)', () => {
     await expect(page.getByText('madhu').first()).toBeVisible()
   })
 
-  test('unauthenticated users are redirected to login', async ({ browser }) => {
+  test('unauthenticated users are redirected to login @smoke', async ({ browser }) => {
     // Use a fresh browser context (no addInitScript) to test unauthenticated access
     const freshContext = await browser.newContext()
     const freshPage = await freshContext.newPage()

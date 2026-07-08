@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Saha.Application.Common.Interfaces;
@@ -19,22 +20,18 @@ public class SahaWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            // Drop the production DbContext options (registered against SqlServer). Just replacing the
-            // options is not enough: AddDbContext also registers the SqlServer provider's internal
-            // services, and EF refuses to initialise a context when two providers share one container.
-            // Isolate the InMemory provider behind its own internal service provider to sidestep that.
-            var dbDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-            if (dbDescriptor is not null)
-                services.Remove(dbDescriptor);
-
-            var inMemoryProvider = new ServiceCollection()
-                .AddEntityFrameworkInMemoryDatabase()
-                .BuildServiceProvider();
+            // AddDbContext registers the SqlServer provider both as DbContextOptions<T> and as a
+            // separate IDbContextOptionsConfiguration<T> descriptor; removing only the former still
+            // leaves the SqlServer provider registered alongside InMemory, which EF Core rejects.
+            var dbDescriptors = services.Where(
+                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
+                     d.ServiceType == typeof(IDbContextOptionsConfiguration<ApplicationDbContext>))
+                .ToList();
+            foreach (var descriptor in dbDescriptors)
+                services.Remove(descriptor);
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase(_dbName)
-                    .UseInternalServiceProvider(inMemoryProvider));
+                options.UseInMemoryDatabase(_dbName));
 
             var emailDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IEmailService));

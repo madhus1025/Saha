@@ -46,24 +46,16 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      // Only measure application source that unit tests can exercise. Playwright specs, config,
-      // entry points, test utilities and type-only files are not unit-tested and would otherwise
-      // pollute the metric.
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: [
-        'node_modules/',
-        'tests/**',
-        '**/*.d.ts',
-        '**/__tests__/**',
-        '**/*.test.{ts,tsx}',
-        'src/test-utils/**',
-        'src/main.tsx',
-        'src/vite-env.d.ts',
-        'src/**/*.stories.tsx',
-      ],
-      // NOTE: hard coverage thresholds are intentionally not enforced yet — the app was built
-      // without broad unit tests, so a global gate would (and did) fail CI unconditionally.
-      // Reintroduce incrementally (e.g. per-directory) as the unit-test suite grows.
+      exclude: ['node_modules/', 'src/app/test-setup.ts', '**/*.d.ts'],
+      // TODO: ratchet these up as test coverage grows. Set near current actual coverage
+      // (~13% lines/statements, ~29% functions, ~55% branches) so CI reflects reality
+      // instead of failing on a target the suite was never close to meeting.
+      thresholds: {
+        lines: 10,
+        functions: 25,
+        branches: 50,
+        statements: 10,
+      },
     },
   },
 })

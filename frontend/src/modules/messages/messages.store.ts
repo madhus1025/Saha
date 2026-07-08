@@ -22,7 +22,8 @@ export const useMessagesStore = create<MessagesUiState>((set) => ({
     set((state) => ({ drafts: { ...state.drafts, [conversationId]: text } })),
   clearDraft: (conversationId) =>
     set((state) => {
-      const { [conversationId]: _removed, ...rest } = state.drafts
-      return { drafts: rest }
+      const drafts = { ...state.drafts }
+      delete drafts[conversationId]
+      return { drafts }
     }),
 }))

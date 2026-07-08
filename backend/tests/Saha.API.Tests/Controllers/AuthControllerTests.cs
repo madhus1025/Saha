@@ -2,12 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Saha.API.Tests.Infrastructure;
 using Xunit;
 
 namespace Saha.API.Tests.Controllers;
 
-public sealed class AuthControllerTests : IDisposable
+public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactory>
 {
     private readonly HttpClient _client;
     private readonly SahaWebApplicationFactory _factory;
@@ -17,24 +18,28 @@ public sealed class AuthControllerTests : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    // Each test gets an isolated in-memory database (and a fresh rate-limiter window) so shared
-    // registrations/usernames can't collide across tests.
-    public AuthControllerTests()
+    public AuthControllerTests(SahaWebApplicationFactory factory)
     {
-        _factory = new SahaWebApplicationFactory();
-        _client = _factory.CreateClient();
-    }
+        _factory = factory;
 
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        // Each test gets its own host (via WithWebHostBuilder) built from the shared factory,
+        // so the "auth" rate limiter's in-memory counters don't carry over between tests while
+        // still reusing the same in-memory database configured on the shared factory instance.
+        //
+        // The refresh-token cookie is marked Secure; CookieContainer only attaches Secure
+        // cookies to https requests, so the test client must talk to the TestServer over https.
+        _client = factory.WithWebHostBuilder(_ => { }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
     }
 
     [Fact]
     public async Task Register_ShouldReturn201_WhenValidRequest()
     {
-        var request = BuildRegisterRequest("TEST-REGISTER01");
+        var request = BuildRegisterRequest("TEST-REGISTER01",
+            husbandUser: "registerhusbnd", wifeUser: "registerwife",
+            husbandEmail: "registerhusband@test.com", wifeEmail: "registerwife@test.com");
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
@@ -46,7 +51,9 @@ public sealed class AuthControllerTests : IDisposable
     [Fact]
     public async Task Register_ShouldReturn409_WhenTogetherIDAlreadyExists()
     {
-        var request = BuildRegisterRequest("DUPLICATE-ID01");
+        var request = BuildRegisterRequest("DUPLICATE-ID01",
+            husbandUser: "duphusbnd", wifeUser: "dupwife",
+            husbandEmail: "duphusband@test.com", wifeEmail: "dupwife@test.com");
         await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
         var duplicateRequest = BuildRegisterRequest("DUPLICATE-ID01", husbandUser: "otherhusband", wifeUser: "otherwife",
@@ -70,7 +77,8 @@ public sealed class AuthControllerTests : IDisposable
     public async Task Login_ShouldReturn200AndSetRefreshCookie_WhenValidCredentials()
     {
         var togetherId = "LOGIN-TEST01";
-        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId));
+        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
+            husbandUser: "loginhusbnd", wifeUser: "loginwife"));
 
         var loginRequest = new { username = "loginhusbnd", password = "SecurePass@123!" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
@@ -79,10 +87,9 @@ public sealed class AuthControllerTests : IDisposable
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         body.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
 
-        // Set-Cookie is a collection of raw cookie strings — assert on the combined value.
-        var setCookie = string.Join("; ", response.Headers.GetValues("Set-Cookie"));
-        setCookie.Should().Contain("X-Refresh-Token");
-        setCookie.ToLowerInvariant().Should().Contain("httponly");
+        var setCookieHeader = response.Headers.FirstOrDefault(h => h.Key == "Set-Cookie");
+        setCookieHeader.Value.Should().Contain(v => v.Contains("X-Refresh-Token"));
+        setCookieHeader.Value.Should().Contain(v => v.Contains("httponly", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -99,8 +106,9 @@ public sealed class AuthControllerTests : IDisposable
     public async Task Login_ShouldIdentifyCorrectPartner_WhenHusbandLogsIn()
     {
         var togetherId = "PARTNER-ID01";
-        await _client.PostAsJsonAsync("/api/v1/auth/register",
-            BuildRegisterRequest(togetherId, husbandUser: "partnerhusbnd"));
+        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
+            husbandUser: "partnerhusbnd", wifeUser: "partnerwife1",
+            husbandEmail: "partnerhusband1@test.com", wifeEmail: "partnerwife1@test.com"));
 
         var loginRequest = new { username = "partnerhusbnd", password = "SecurePass@123!" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
@@ -135,17 +143,9 @@ public sealed class AuthControllerTests : IDisposable
             husbandEmail: "refreshhusband@test.com", wifeEmail: "refreshwife@test.com"));
 
         var loginRequest = new { username = "refreshhusbnd", password = "SecurePass@123!" };
-        var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+        await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
 
-        // The refresh cookie is marked Secure, so the http test client won't auto-resend it —
-        // forward it explicitly on the refresh call.
-        var refreshCookie = loginResponse.Headers
-            .GetValues("Set-Cookie")
-            .First(c => c.StartsWith("X-Refresh-Token"))
-            .Split(';')[0];
-        var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
-        refreshRequest.Headers.Add("Cookie", refreshCookie);
-        var response = await _client.SendAsync(refreshRequest);
+        var response = await _client.PostAsync("/api/v1/auth/refresh", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -174,7 +174,7 @@ public sealed class AuthControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ForgotPassword_ShouldReturn200_WhenTogetherIDExists()
+    public async Task ForgotPassword_ShouldReturn204_WhenTogetherIDExists()
     {
         var togetherId = "FORGOT-TEST01";
         await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId,
@@ -188,7 +188,7 @@ public sealed class AuthControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ForgotPassword_ShouldReturn200_EvenWhenTogetherIDDoesNotExist()
+    public async Task ForgotPassword_ShouldReturn204_EvenWhenTogetherIDDoesNotExist()
     {
         var request = new { togetherIDOrUsername = "NONEXISTENT-ID" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/forgot-password", request);
@@ -227,6 +227,8 @@ public sealed class AuthControllerTests : IDisposable
         new
         {
             togetherID = togetherId,
+            password = "SecurePass@123!",
+            confirmPassword = "SecurePass@123!",
             husbandUsername = husbandUser,
             husbandName = "Test Husband",
             husbandDateOfBirth = "1990-01-01",
@@ -236,8 +238,6 @@ public sealed class AuthControllerTests : IDisposable
             wifeName = "Test Wife",
             wifeDateOfBirth = "1992-06-15",
             wifeEmail,
-            wifePhoneNumber = "+19876543210",
-            password = "SecurePass@123!",
-            confirmPassword = "SecurePass@123!"
+            wifePhoneNumber = "+19876543210"
         };
 }

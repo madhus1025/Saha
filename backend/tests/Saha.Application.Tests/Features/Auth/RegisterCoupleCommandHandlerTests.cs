@@ -3,6 +3,7 @@ using NSubstitute;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
 using Saha.Application.Features.Auth.Commands.Register;
+using Saha.Application.Telemetry;
 using Saha.Domain.Interfaces.Repositories;
 using Saha.Domain.Interfaces.Services;
 using Xunit;
@@ -29,7 +30,7 @@ public sealed class RegisterCoupleCommandHandlerTests
         _currentUser.UserAgent.Returns("test-agent");
 
         _handler = new RegisterCoupleCommandHandler(
-            _coupleRepository, _passwordHasher, _auditLogger, _currentUser, new Saha.Application.Telemetry.AuthMetrics());
+            _coupleRepository, _passwordHasher, _auditLogger, _currentUser, new AuthMetrics());
     }
 
     private static RegisterCoupleCommand ValidCommand() => new(
@@ -115,8 +116,6 @@ public sealed class RegisterCoupleCommandHandlerTests
 
         await _handler.Handle(ValidCommand(), CancellationToken.None);
 
-        // Arguments must be listed in the method's declaration order so NSubstitute's positional
-        // matcher queue aligns (mixing concrete values + matchers out of order throws).
         await _auditLogger.Received(1).LogAsync(
             action: "COUPLE_REGISTERED",
             isSuccess: true,

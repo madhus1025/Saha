@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text;
-using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -67,20 +66,13 @@ public static class ServiceCollectionExtensions
                 limiter.QueueLimit = 0;
             });
 
-            // General throttle for every request (100/min per IP), applied as the GLOBAL limiter so
-            // it does NOT shadow stricter endpoint policies like "auth". (A blanket
-            // RequireRateLimiting("api") would override [EnableRateLimiting("auth")] via last-wins
-            // endpoint metadata, silently disabling the 5/min auth throttle.)
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 100,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 5,
-                    }));
+            options.AddFixedWindowLimiter("api", limiter =>
+            {
+                limiter.PermitLimit = 100;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                limiter.QueueLimit = 5;
+            });
 
             // Separate limiter for the frontend telemetry ingest endpoint
             options.AddFixedWindowLimiter("telemetry", limiter =>

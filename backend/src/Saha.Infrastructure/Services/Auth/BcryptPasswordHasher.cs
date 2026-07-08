@@ -11,7 +11,6 @@ public sealed class BcryptPasswordHasher : IPasswordHasher
 
     public bool Verify(string password, string hash)
     {
-        // A malformed/legacy stored hash must fail verification, not throw.
         try
         {
             return BCrypt.Net.BCrypt.Verify(password, hash);

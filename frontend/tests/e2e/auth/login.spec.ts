@@ -5,7 +5,7 @@ test.describe('Login', () => {
     await page.goto('/login')
   })
 
-  test('shows the login form', async ({ page }) => {
+  test('shows the login form @smoke', async ({ page }) => {
     await expect(page.getByText('Welcome back')).toBeVisible()
     await expect(page.getByLabel('Username')).toBeVisible()
     await expect(page.getByLabel('Shared Password')).toBeVisible()
@@ -40,7 +40,7 @@ test.describe('Login', () => {
     expect(await passwordInput.getAttribute('type')).toBe('password')
   })
 
-  test('navigates to register page', async ({ page }) => {
+  test('navigates to register page @smoke', async ({ page }) => {
     await page.getByRole('link', { name: /create your couple account/i }).click()
     await expect(page).toHaveURL('/register')
   })

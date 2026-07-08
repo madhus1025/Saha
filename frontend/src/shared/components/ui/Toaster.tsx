@@ -74,6 +74,5 @@ export function Toaster() {
   )
 }
 
-// Convenience re-export; not a component, so Fast Refresh doesn't apply here.
-// eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components -- re-exported for import convenience alongside the Toaster component
 export { useToast, toast } from '@/shared/hooks/use-toast'
