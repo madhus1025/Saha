@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173'
+
+// Start a local dev server only when the target is local (CI e2e + local dev). When pointed at a
+// deployed URL (CD smoke tests against FRONTEND_URL), hit that URL directly with no local server.
+const isLocalTarget = /localhost|127\.0\.0\.1/.test(baseURL)
+
 export default defineConfig({
   testDir: './tests/e2e',
   testIgnore: ['**/integration/**'],
@@ -10,7 +16,7 @@ export default defineConfig({
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
 
   use: {
-    baseURL: process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -24,10 +30,12 @@ export default defineConfig({
     { name: 'Mobile Safari', use: { ...devices['iPhone 12'] } },
   ],
 
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env['CI'],
-    timeout: 30000,
-  },
+  webServer: isLocalTarget
+    ? {
+        command: 'npm run dev',
+        url: baseURL,
+        reuseExistingServer: !process.env['CI'],
+        timeout: 120_000,
+      }
+    : undefined,
 })

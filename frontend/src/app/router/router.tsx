@@ -52,6 +52,7 @@ export const router = createBrowserRouter([
       { path: 'memories', element: <MemoriesPage /> },
       { path: 'goals', element: <GoalsPage /> },
       { path: 'messages', element: <MessagesPage /> },
+      { path: 'messages/:conversationId', element: <MessagesPage /> },
       { path: 'connect', element: <ConnectPage /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'settings', element: <SettingsPage /> },

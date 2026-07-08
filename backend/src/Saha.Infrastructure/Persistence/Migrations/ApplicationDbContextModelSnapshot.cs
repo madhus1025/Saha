@@ -84,6 +84,133 @@ namespace Saha.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Saha.Domain.Entities.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastActivityAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastMessagePreview")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("LastMessageSenderPartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid?>("OwnerCoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PartnerCoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerCoupleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Conversations_PartnerCoupleId")
+                        .HasFilter("[PartnerCoupleId] IS NOT NULL");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("IX_Conversations_Type");
+
+                    b.ToTable("Conversations", (string)null);
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.ConversationCoupleState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CoupleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ConversationCoupleStates_Conversation_Couple");
+
+                    b.HasIndex("CoupleId", "IsHidden")
+                        .HasDatabaseName("IX_ConversationCoupleStates_Couple_Hidden");
+
+                    b.ToTable("ConversationCoupleStates", (string)null);
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.ConversationParticipant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoupleId")
+                        .HasDatabaseName("IX_ConversationParticipants_CoupleId");
+
+                    b.HasIndex("PartnerId")
+                        .HasDatabaseName("IX_ConversationParticipants_PartnerId");
+
+                    b.HasIndex("ConversationId", "PartnerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ConversationParticipants_Conversation_Partner");
+
+                    b.ToTable("ConversationParticipants", (string)null);
+                });
+
             modelBuilder.Entity("Saha.Domain.Entities.Couple", b =>
                 {
                     b.Property<Guid>("Id")
@@ -159,6 +286,133 @@ namespace Saha.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_CoupleConnections_CoupleAId_CoupleBId");
 
                     b.ToTable("CoupleConnections", (string)null);
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("SenderCoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SenderPartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderPartnerId")
+                        .HasDatabaseName("IX_Messages_SenderPartnerId");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("IX_Messages_Conversation_CreatedAt");
+
+                    b.ToTable("Messages", (string)null);
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.MessageAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MessageAttachments_MessageId");
+
+                    b.ToTable("MessageAttachments", (string)null);
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.MessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CoupleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "PartnerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MessageReactions_Message_Partner");
+
+                    b.ToTable("MessageReactions", (string)null);
                 });
 
             modelBuilder.Entity("Saha.Domain.Entities.Partner", b =>
@@ -316,6 +570,42 @@ namespace Saha.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Saha.Domain.Entities.ConversationCoupleState", b =>
+                {
+                    b.HasOne("Saha.Domain.Entities.Conversation", null)
+                        .WithMany("CoupleStates")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.ConversationParticipant", b =>
+                {
+                    b.HasOne("Saha.Domain.Entities.Conversation", null)
+                        .WithMany("Participants")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.MessageAttachment", b =>
+                {
+                    b.HasOne("Saha.Domain.Entities.Message", null)
+                        .WithOne("Attachment")
+                        .HasForeignKey("Saha.Domain.Entities.MessageAttachment", "MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.MessageReaction", b =>
+                {
+                    b.HasOne("Saha.Domain.Entities.Message", null)
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Saha.Domain.Entities.Partner", b =>
                 {
                     b.HasOne("Saha.Domain.Entities.Couple", null)
@@ -343,6 +633,13 @@ namespace Saha.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Saha.Domain.Entities.Conversation", b =>
+                {
+                    b.Navigation("CoupleStates");
+
+                    b.Navigation("Participants");
+                });
+
             modelBuilder.Entity("Saha.Domain.Entities.Couple", b =>
                 {
                     b.Navigation("Partners");
@@ -350,6 +647,13 @@ namespace Saha.Infrastructure.Persistence.Migrations
                     b.Navigation("PasswordResetTokens");
 
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("Saha.Domain.Entities.Message", b =>
+                {
+                    b.Navigation("Attachment");
+
+                    b.Navigation("Reactions");
                 });
 #pragma warning restore 612, 618
         }

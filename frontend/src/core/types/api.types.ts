@@ -56,6 +56,7 @@ export interface RegisterCoupleResult {
 
 export interface ConnectionDto {
   connectionId: string
+  coupleId: string
   togetherID: string
   husbandName: string
   wifeName: string
@@ -82,4 +83,78 @@ export interface SendConnectionRequestResult {
 
 export interface UploadProfilePictureResult {
   profilePictureUrl: string
+}
+
+// ---- Messaging (couple-messaging feature) --------------------------------------------------
+
+export type ConversationType = 'Partner' | 'Group'
+export type MessageContentType = 'Text' | 'Image' | 'Video'
+export type ReactionToken = 'heart' | 'laugh' | 'wow' | 'sad' | 'thumbsup' | 'fire'
+
+export interface ParticipantDto {
+  partnerId: string
+  coupleId: string
+  name: string
+  role: PartnerRole
+  avatarUrl: string | null
+}
+
+export interface ReactionSummaryDto {
+  emoji: string
+  count: number
+  partnerIds: string[]
+}
+
+export interface MessageAttachmentDto {
+  url: string
+  contentType: string
+  fileName: string
+  sizeBytes: number
+}
+
+export interface MessageDto {
+  id: string
+  conversationId: string
+  senderPartnerId: string
+  senderName: string
+  senderRole: PartnerRole
+  senderAvatarUrl: string | null
+  contentType: MessageContentType
+  body: string | null
+  attachment: MessageAttachmentDto | null
+  isEdited: boolean
+  editedAt: string | null
+  isDeleted: boolean
+  createdAt: string
+  reactions: ReactionSummaryDto[]
+}
+
+export interface MessagePageDto {
+  items: MessageDto[]
+  nextCursor: string | null
+}
+
+export interface ConversationSummaryDto {
+  id: string
+  type: ConversationType
+  name: string | null
+  participants: ParticipantDto[]
+  lastMessagePreview: string | null
+  lastMessageSenderPartnerId: string | null
+  lastActivityAt: string
+  isPinned: boolean
+  isOwner: boolean
+}
+
+export interface ConversationDetailDto {
+  id: string
+  type: ConversationType
+  name: string | null
+  ownerCoupleId: string | null
+  isOwner: boolean
+  participants: ParticipantDto[]
+}
+
+export interface CreateGroupConversationResult {
+  conversationId: string
 }

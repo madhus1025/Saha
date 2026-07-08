@@ -9,6 +9,7 @@ public sealed record GetConnectionsQuery(
 
 public sealed record ConnectionDto(
     Guid ConnectionId,
+    Guid CoupleId,
     string TogetherID,
     string HusbandName,
     string WifeName,

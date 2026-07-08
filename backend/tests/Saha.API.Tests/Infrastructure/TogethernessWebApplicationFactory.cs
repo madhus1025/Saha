@@ -10,7 +10,7 @@ using Saha.Infrastructure.Persistence;
 
 namespace Saha.API.Tests.Infrastructure;
 
-public sealed class SahaWebApplicationFactory : WebApplicationFactory<Program>
+public class SahaWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = Guid.NewGuid().ToString();
 

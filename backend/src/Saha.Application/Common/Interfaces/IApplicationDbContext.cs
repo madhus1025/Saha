@@ -11,6 +11,12 @@ public interface IApplicationDbContext
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<CoupleConnection> CoupleConnections { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<Conversation> Conversations { get; }
+    DbSet<ConversationParticipant> ConversationParticipants { get; }
+    DbSet<ConversationCoupleState> ConversationCoupleStates { get; }
+    DbSet<Message> Messages { get; }
+    DbSet<MessageAttachment> MessageAttachments { get; }
+    DbSet<MessageReaction> MessageReactions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

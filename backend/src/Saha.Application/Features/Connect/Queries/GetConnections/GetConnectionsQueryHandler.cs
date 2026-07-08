@@ -44,6 +44,7 @@ public sealed class GetConnectionsQueryHandler : IRequestHandler<GetConnectionsQ
 
             dtos.Add(new ConnectionDto(
                 ConnectionId: connection.Id,
+                CoupleId: otherCoupleId,
                 TogetherID: otherCouple.TogetherID,
                 HusbandName: otherCouple.Husband.Name,
                 WifeName: otherCouple.Wife.Name,
