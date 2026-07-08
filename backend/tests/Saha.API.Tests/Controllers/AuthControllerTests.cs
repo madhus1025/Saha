@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Saha.API.Tests.Controllers;
 
-public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactory>
+public sealed class AuthControllerTests : IDisposable
 {
     private readonly HttpClient _client;
     private readonly SahaWebApplicationFactory _factory;
@@ -17,10 +17,18 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         PropertyNameCaseInsensitive = true
     };
 
-    public AuthControllerTests(SahaWebApplicationFactory factory)
+    // Each test gets an isolated in-memory database (and a fresh rate-limiter window) so shared
+    // registrations/usernames can't collide across tests.
+    public AuthControllerTests()
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        _factory = new SahaWebApplicationFactory();
+        _client = _factory.CreateClient();
+    }
+
+    public void Dispose()
+    {
+        _client.Dispose();
+        _factory.Dispose();
     }
 
     [Fact]
@@ -32,7 +40,7 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        body.GetProperty("togetherId").GetString().Should().Be("TEST-REGISTER01");
+        body.GetProperty("togetherID").GetString().Should().Be("TEST-REGISTER01");
     }
 
     [Fact]
@@ -71,9 +79,10 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         body.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
 
-        var setCookieHeader = response.Headers.FirstOrDefault(h => h.Key == "Set-Cookie");
-        setCookieHeader.Value.Should().Contain("X-Refresh-Token");
-        setCookieHeader.Value.Should().Contain("HttpOnly");
+        // Set-Cookie is a collection of raw cookie strings — assert on the combined value.
+        var setCookie = string.Join("; ", response.Headers.GetValues("Set-Cookie"));
+        setCookie.Should().Contain("X-Refresh-Token");
+        setCookie.ToLowerInvariant().Should().Contain("httponly");
     }
 
     [Fact]
@@ -90,7 +99,8 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     public async Task Login_ShouldIdentifyCorrectPartner_WhenHusbandLogsIn()
     {
         var togetherId = "PARTNER-ID01";
-        await _client.PostAsJsonAsync("/api/v1/auth/register", BuildRegisterRequest(togetherId));
+        await _client.PostAsJsonAsync("/api/v1/auth/register",
+            BuildRegisterRequest(togetherId, husbandUser: "partnerhusbnd"));
 
         var loginRequest = new { username = "partnerhusbnd", password = "SecurePass@123!" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
@@ -125,9 +135,17 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
             husbandEmail: "refreshhusband@test.com", wifeEmail: "refreshwife@test.com"));
 
         var loginRequest = new { username = "refreshhusbnd", password = "SecurePass@123!" };
-        await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+        var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
 
-        var response = await _client.PostAsync("/api/v1/auth/refresh-token", null);
+        // The refresh cookie is marked Secure, so the http test client won't auto-resend it —
+        // forward it explicitly on the refresh call.
+        var refreshCookie = loginResponse.Headers
+            .GetValues("Set-Cookie")
+            .First(c => c.StartsWith("X-Refresh-Token"))
+            .Split(';')[0];
+        var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
+        refreshRequest.Headers.Add("Cookie", refreshCookie);
+        var response = await _client.SendAsync(refreshRequest);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -163,19 +181,19 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
             husbandUser: "forgothusbnd", wifeUser: "forgotwife",
             husbandEmail: "forghusband@test.com", wifeEmail: "forgwife@test.com"));
 
-        var request = new { togetherId = "FORGOT-TEST01" };
+        var request = new { togetherIDOrUsername = "FORGOT-TEST01" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/forgot-password", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
     public async Task ForgotPassword_ShouldReturn200_EvenWhenTogetherIDDoesNotExist()
     {
-        var request = new { togetherId = "NONEXISTENT-ID" };
+        var request = new { togetherIDOrUsername = "NONEXISTENT-ID" };
         var response = await _client.PostAsJsonAsync("/api/v1/auth/forgot-password", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -183,7 +201,7 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     {
         _client.DefaultRequestHeaders.Authorization = null;
 
-        var response = await _client.GetAsync("/api/v1/profile");
+        var response = await _client.GetAsync("/api/v1/profile/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -208,24 +226,18 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
         string wifeEmail = "wife@test.com") =>
         new
         {
-            togetherId,
+            togetherID = togetherId,
+            husbandUsername = husbandUser,
+            husbandName = "Test Husband",
+            husbandDateOfBirth = "1990-01-01",
+            husbandEmail,
+            husbandPhoneNumber = "+11234567890",
+            wifeUsername = wifeUser,
+            wifeName = "Test Wife",
+            wifeDateOfBirth = "1992-06-15",
+            wifeEmail,
+            wifePhoneNumber = "+19876543210",
             password = "SecurePass@123!",
-            confirmPassword = "SecurePass@123!",
-            husband = new
-            {
-                name = "Test Husband",
-                dateOfBirth = "1990-01-01",
-                email = husbandEmail,
-                phoneNumber = "+11234567890",
-                username = husbandUser
-            },
-            wife = new
-            {
-                name = "Test Wife",
-                dateOfBirth = "1992-06-15",
-                email = wifeEmail,
-                phoneNumber = "+19876543210",
-                username = wifeUser
-            }
+            confirmPassword = "SecurePass@123!"
         };
 }

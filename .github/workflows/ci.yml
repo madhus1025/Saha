@@ -23,14 +23,18 @@ jobs:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           SA_PASSWORD: YourStrong@Password123
+          MSSQL_SA_PASSWORD: YourStrong@Password123
           ACCEPT_EULA: Y
         ports:
           - 1433:1433
+        # 2022-latest ships sqlcmd at mssql-tools18 (not the old mssql-tools path) and it encrypts by
+        # default, so -C is required to trust the container's self-signed cert.
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Password123 -Q 'SELECT 1'"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P YourStrong@Password123 -Q 'SELECT 1' -b"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 15
+          --health-start-period 30s
 
     env:
       ConnectionStrings__DefaultConnection: >-

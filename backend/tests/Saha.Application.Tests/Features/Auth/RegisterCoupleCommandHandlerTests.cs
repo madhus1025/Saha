@@ -115,17 +115,19 @@ public sealed class RegisterCoupleCommandHandlerTests
 
         await _handler.Handle(ValidCommand(), CancellationToken.None);
 
+        // Arguments must be listed in the method's declaration order so NSubstitute's positional
+        // matcher queue aligns (mixing concrete values + matchers out of order throws).
         await _auditLogger.Received(1).LogAsync(
             action: "COUPLE_REGISTERED",
             isSuccess: true,
             coupleId: Arg.Any<Guid?>(),
-            cancellationToken: Arg.Any<CancellationToken>(),
-            details: Arg.Any<string?>(),
-            errorCode: Arg.Any<string?>(),
-            ipAddress: Arg.Any<string?>(),
             partnerId: Arg.Any<Guid?>(),
-            resourceId: Arg.Any<Guid?>(),
             resourceType: Arg.Any<string?>(),
-            userAgent: Arg.Any<string?>());
+            resourceId: Arg.Any<Guid?>(),
+            details: Arg.Any<string?>(),
+            ipAddress: Arg.Any<string?>(),
+            userAgent: Arg.Any<string?>(),
+            errorCode: Arg.Any<string?>(),
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 }

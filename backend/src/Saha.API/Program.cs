@@ -104,6 +104,10 @@ try
 
     app.UseCors("AllowFrontend");
 
+    // Routing must run before the rate limiter so endpoint-specific policies
+    // ([EnableRateLimiting("auth")] / RequireRateLimiting) are actually applied.
+    app.UseRouting();
+
     app.UseRateLimiter();
 
     app.UseAuthentication();
@@ -111,7 +115,9 @@ try
 
     app.UseMiddleware<CurrentUserContextMiddleware>();
 
-    app.MapControllers().RequireRateLimiting("api");
+    // The 100/min general limit is applied as the global limiter (see AddRateLimiter), so endpoint
+    // policies like "auth" are not shadowed. Controllers opt into stricter policies via attributes.
+    app.MapControllers();
 
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
         .AllowAnonymous();
