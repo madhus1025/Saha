@@ -29,7 +29,7 @@ public sealed class RegisterCoupleCommandHandlerTests
         _currentUser.UserAgent.Returns("test-agent");
 
         _handler = new RegisterCoupleCommandHandler(
-            _coupleRepository, _passwordHasher, _auditLogger, _currentUser);
+            _coupleRepository, _passwordHasher, _auditLogger, _currentUser, new Saha.Application.Telemetry.AuthMetrics());
     }
 
     private static RegisterCoupleCommand ValidCommand() => new(

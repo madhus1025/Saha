@@ -7,7 +7,7 @@
 
 **Legend:** ✅ Done · 🟡 In Progress · ⛔ Blocked · ⬜ Not Started (stub/placeholder)
 
-**Last updated:** 2026-06-30
+**Last updated:** 2026-07-08
 
 ## Modules
 
@@ -22,7 +22,7 @@
 | finance | ⬜ Not Started | — | `ComingSoonModule` stub |
 | goals | ⬜ Not Started | — | `ComingSoonModule` stub |
 | memories | ⬜ Not Started | — | `ComingSoonModule` stub |
-| messages | ⬜ Not Started | — | `ComingSoonModule` stub |
+| messages | ✅ Done | [brief](./completed/couple-messaging-brief.md) · [progress](./completed/couple-messaging-progress.md) | couple messaging (partner + group chat) — full stack + tests |
 
 ## How to update this board
 

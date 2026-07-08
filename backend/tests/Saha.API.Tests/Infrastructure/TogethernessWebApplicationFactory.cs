@@ -9,7 +9,7 @@ using Saha.Infrastructure.Persistence;
 
 namespace Saha.API.Tests.Infrastructure;
 
-public sealed class SahaWebApplicationFactory : WebApplicationFactory<Program>
+public class SahaWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = Guid.NewGuid().ToString();
 
@@ -19,13 +19,22 @@ public sealed class SahaWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            // Drop the production DbContext options (registered against SqlServer). Just replacing the
+            // options is not enough: AddDbContext also registers the SqlServer provider's internal
+            // services, and EF refuses to initialise a context when two providers share one container.
+            // Isolate the InMemory provider behind its own internal service provider to sidestep that.
             var dbDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
             if (dbDescriptor is not null)
                 services.Remove(dbDescriptor);
 
+            var inMemoryProvider = new ServiceCollection()
+                .AddEntityFrameworkInMemoryDatabase()
+                .BuildServiceProvider();
+
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase(_dbName));
+                options.UseInMemoryDatabase(_dbName)
+                    .UseInternalServiceProvider(inMemoryProvider));
 
             var emailDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IEmailService));

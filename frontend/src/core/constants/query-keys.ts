@@ -12,4 +12,9 @@ export const queryKeys = {
       status ? ['connect', 'connections', status] : ['connect', 'connections'],
     search: (query: string) => ['connect', 'search', query] as const,
   },
+  messages: {
+    conversations: ['messages', 'conversations'] as const,
+    conversation: (id: string) => ['messages', 'conversation', id] as const,
+    thread: (id: string) => ['messages', 'thread', id] as const,
+  },
 } as const

@@ -30,6 +30,12 @@ public sealed class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<CoupleConnection> CoupleConnections => Set<CoupleConnection>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
+    public DbSet<ConversationCoupleState> ConversationCoupleStates => Set<ConversationCoupleState>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<MessageAttachment> MessageAttachments => Set<MessageAttachment>();
+    public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
