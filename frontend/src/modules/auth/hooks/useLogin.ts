@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { authApi } from '@/core/api/auth.api'
 import { useAuthStore } from '@/shared/stores/auth.store'
@@ -10,6 +10,7 @@ import type { LoginFormValues } from '../schemas/login.schema'
 
 export function useLogin() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const setAuthData = useAuthStore((s) => s.setAuthData)
 
   return useMutation({
@@ -19,6 +20,9 @@ export function useLogin() {
       return authApi.login(values)
     },
     onSuccess: (data) => {
+      // Clear any cached queries from a previously signed-in account before this couple's data
+      // loads, so a same-tab account switch never surfaces the prior couple's conversations.
+      queryClient.clear()
       setAuthData(data)
       // After login, attach the partner ID to future telemetry events
       telemetry.identify(data.partnerId)

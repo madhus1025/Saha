@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
@@ -37,6 +38,7 @@ const secondaryNavigation = [
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { togetherID, logout } = useAuthStore()
 
   const handleLogout = async () => {
@@ -44,6 +46,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       await authApi.logout()
     } finally {
       logout()
+      // Drop all cached queries so the next account that logs in on this tab cannot see the
+      // previous couple's cached conversations/data.
+      queryClient.clear()
       navigate('/login', { replace: true })
     }
   }

@@ -17,7 +17,10 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:integration": "playwright test --config playwright.integration.config.ts"
+    "test:e2e:integration": "playwright test --config playwright.integration.config.ts",
+    "test:e2e:real": "playwright test --config playwright.real.config.ts",
+    "seed:e2e": "node tests/e2e/real/seed.mjs",
+    "seed:e2e:connect": "node tests/e2e/real/seed.mjs --connect"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

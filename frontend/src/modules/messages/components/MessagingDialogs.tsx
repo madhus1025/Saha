@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Check, Pin, PinOff, Trash2, X } from 'lucide-react'
+import { Check, Pin, PinOff, Search, Trash2, X } from 'lucide-react'
 import { connectApi } from '@/core/api/connect.api'
 import { queryKeys } from '@/core/constants/query-keys'
 import { Avatar } from '@/shared/components/ui/Avatar'
@@ -32,7 +32,9 @@ function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-sandstone-900 dark:text-sandstone-100">{title}</h2>
+          <h2 className="text-base font-semibold text-sandstone-900 dark:text-sandstone-100">
+            {title}
+          </h2>
           <button onClick={onClose} aria-label="Close" className="p-1 text-sandstone-400">
             <X className="w-5 h-5" />
           </button>
@@ -52,6 +54,7 @@ export function NewGroupDialog({
 }) {
   const [name, setName] = useState('')
   const [selected, setSelected] = useState<string[]>([])
+  const [search, setSearch] = useState('')
   const { createGroup } = useConversationMutations()
 
   const { data: connections } = useQuery({
@@ -63,6 +66,16 @@ export function NewGroupDialog({
     setSelected((prev) =>
       prev.includes(coupleId) ? prev.filter((id) => id !== coupleId) : [...prev, coupleId],
     )
+
+  // Nothing is listed until the user searches — with many connections, showing them all is noise.
+  // An empty query returns [] so the picker only reveals couples that match a name / Together ID.
+  const filteredConnections = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return []
+    return (connections ?? []).filter((c) =>
+      [c.togetherID, c.husbandName, c.wifeName].some((v) => v?.toLowerCase().includes(q)),
+    )
+  }, [connections, search])
 
   const canCreate = name.trim().length > 0 && selected.length > 0
 
@@ -83,35 +96,56 @@ export function NewGroupDialog({
             You have no connected couples yet.
           </p>
         ) : (
-          <div className="space-y-2 max-h-56 overflow-y-auto">
-            {connections.map((c) => {
-              const isSelected = selected.includes(c.coupleId)
-              return (
-                <button
-                  key={c.coupleId}
-                  onClick={() => toggle(c.coupleId)}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors',
-                    isSelected
-                      ? 'border-forest-300 bg-forest-50 dark:bg-forest-900/20'
-                      : 'border-sandstone-100 dark:border-sandstone-800 hover:bg-sandstone-50',
-                  )}
-                >
-                  <div className="flex -space-x-2">
-                    <Avatar src={c.husbandProfilePictureUrl} name={c.husbandName} size="xs" />
-                    <Avatar src={c.wifeProfilePictureUrl} name={c.wifeName} size="xs" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{c.togetherID}</p>
-                    <p className="text-xs text-sandstone-500 truncate">
-                      {c.husbandName} & {c.wifeName}
-                    </p>
-                  </div>
-                  {isSelected && <Check className="w-4 h-4 text-forest-600" />}
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <div className="mb-2">
+              <Input
+                placeholder="Search couples by name or Together ID"
+                leftIcon={Search}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search couples"
+              />
+            </div>
+            {search.trim() === '' ? (
+              <p className="text-sm text-sandstone-400 py-4 text-center">
+                Search by name or Together ID to add couples.
+              </p>
+            ) : filteredConnections.length === 0 ? (
+              <p className="text-sm text-sandstone-400 py-4 text-center">
+                No couples match “{search.trim()}”.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto">
+                {filteredConnections.map((c) => {
+                  const isSelected = selected.includes(c.coupleId)
+                  return (
+                    <button
+                      key={c.coupleId}
+                      onClick={() => toggle(c.coupleId)}
+                      className={cn(
+                        'w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors',
+                        isSelected
+                          ? 'border-forest-300 bg-forest-50 dark:bg-forest-900/20'
+                          : 'border-sandstone-100 dark:border-sandstone-800 hover:bg-sandstone-50',
+                      )}
+                    >
+                      <div className="flex -space-x-2">
+                        <Avatar src={c.husbandProfilePictureUrl} name={c.husbandName} size="xs" />
+                        <Avatar src={c.wifeProfilePictureUrl} name={c.wifeName} size="xs" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{c.togetherID}</p>
+                        <p className="text-xs text-sandstone-500 truncate">
+                          {c.husbandName} & {c.wifeName}
+                        </p>
+                      </div>
+                      {isSelected && <Check className="w-4 h-4 text-forest-600" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -56,11 +56,17 @@ public static class ServiceCollectionExtensions
 
         services.AddAuthorization();
 
+        // Limits are configurable so non-production environments (e.g. IntegrationTest / E2E, which
+        // fire many auth calls in a burst) can relax them. Production defaults are unchanged when the
+        // "RateLimiting" config section is absent.
+        var authPermit = configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 5;
+        var apiPermit = configuration.GetValue<int?>("RateLimiting:Api:PermitLimit") ?? 100;
+
         services.AddRateLimiter(options =>
         {
             options.AddFixedWindowLimiter("auth", limiter =>
             {
-                limiter.PermitLimit = 5;
+                limiter.PermitLimit = authPermit;
                 limiter.Window = TimeSpan.FromMinutes(1);
                 limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                 limiter.QueueLimit = 0;
@@ -68,7 +74,7 @@ public static class ServiceCollectionExtensions
 
             options.AddFixedWindowLimiter("api", limiter =>
             {
-                limiter.PermitLimit = 100;
+                limiter.PermitLimit = apiPermit;
                 limiter.Window = TimeSpan.FromMinutes(1);
                 limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                 limiter.QueueLimit = 5;

@@ -1,0 +1,27 @@
+/**
+ * Global setup for the real-backend E2E suite. Confirms the Saha backend is reachable before any
+ * spec runs, and fails loudly with instructions if it is not. The frontend (Vite) is started by the
+ * webServer block in playwright.real.config.ts.
+ */
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0' // trust the local self-signed dev cert
+
+import { API_BASE } from './fixtures'
+
+export default async function globalSetup() {
+  const health = API_BASE.replace('/api/v1', '/health')
+  try {
+    const res = await fetch(health)
+    if (!res.ok) throw new Error(`status ${res.status}`)
+  } catch (err) {
+    throw new Error(
+      '\n\n❌ Saha backend is not reachable at ' + health + ' (' + String(err) + ').\n\n' +
+        'Start it in the IntegrationTest environment first:\n\n' +
+        '  cd backend/src/Saha.API\n' +
+        '  ASPNETCORE_ENVIRONMENT=IntegrationTest \\\n' +
+        '  ASPNETCORE_URLS="https://localhost:7001;http://localhost:5001" \\\n' +
+        '  dotnet run --no-launch-profile\n\n' +
+        '(IntegrationTest relaxes the auth rate limiter so bursts of logins/registers don\'t 429.)\n',
+    )
+  }
+  console.log('✅ Backend reachable at ' + health)
+}
