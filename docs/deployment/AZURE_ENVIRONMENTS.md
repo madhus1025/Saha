@@ -16,9 +16,12 @@ Subscription:
 | Item | Value |
 |---|---|
 | Resource group | `rg-saha-prod` |
-| Frontend URL | `https://agreeable-glacier-09a1f2110.7.azurestaticapps.net` |
-| API URL | `https://app-saha-api-prod.azurewebsites.net` |
-| Health URL | `https://app-saha-api-prod.azurewebsites.net/health` |
+| Frontend URL | `https://www.wesaha.com` |
+| Frontend Azure URL | `https://agreeable-glacier-09a1f2110.7.azurestaticapps.net` |
+| API URL | `https://api.wesaha.com` |
+| API Azure URL | `https://app-saha-api-prod.azurewebsites.net` |
+| Health URL | `https://api.wesaha.com/health` |
+| Root domain | `https://wesaha.com` should forward to `https://www.wesaha.com` in GoDaddy |
 | SQL server | `sql-saha-prod.database.windows.net` |
 | SQL database | `saha-prod` |
 | Storage account | `stsahaprodhkjwdxm6` |
@@ -44,6 +47,7 @@ Production status:
 | API `/health` | `200` |
 | Smoke tests | Passed, 6/6 |
 | API register/login smoke | Passed |
+| Custom domain CORS | Passed, `www.wesaha.com` to `api.wesaha.com` |
 
 ## Staging
 
@@ -80,6 +84,9 @@ Staging status:
 
 - Production and staging use separate SQL servers and databases.
 - Production GitHub environment secrets are configured under the `prod` environment.
+- Production custom domains are managed in GoDaddy DNS.
+- Production frontend uses `www.wesaha.com`; production API uses `api.wesaha.com`.
+- GoDaddy root forwarding should redirect `wesaha.com` to `www.wesaha.com`.
 - The current CD workflow defaults to `prod` when no workflow input is provided.
 - SMTP/SendGrid is not fully configured for production yet; password reset email delivery needs real SMTP secrets.
 - `asp-saha-prod` uses `P1v3`, which is a fixed monthly cost while production remains deployed.
