@@ -34,15 +34,22 @@ public sealed class SearchCoupleQueryHandler
         {
             if (couple.Id == request.RequesterCoupleId) continue;
 
+            // Defence in depth: the repository already excludes couples awaiting a partner, because
+            // a half-formed home must never be discoverable by another couple.
+            if (!couple.IsComplete) continue;
+
             var connection = await _connectionRepository.GetBetweenCouplesAsync(
                 request.RequesterCoupleId, couple.Id, cancellationToken);
 
+            var husband = couple.RequireHusband();
+            var wife = couple.RequireWife();
+
             results.Add(new CoupleSearchResultDto(
                 TogetherID: couple.TogetherID,
-                HusbandName: couple.Husband.Name,
-                WifeName: couple.Wife.Name,
-                HusbandProfilePictureUrl: couple.Husband.ProfilePictureUrl,
-                WifeProfilePictureUrl: couple.Wife.ProfilePictureUrl,
+                HusbandName: husband.Name,
+                WifeName: wife.Name,
+                HusbandProfilePictureUrl: husband.ProfilePictureUrl,
+                WifeProfilePictureUrl: wife.ProfilePictureUrl,
                 ExistingConnectionStatus: connection?.Status.ToString()));
         }
 

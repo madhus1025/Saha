@@ -1,9 +1,6 @@
 using MediatR;
-using Microsoft.Extensions.Configuration;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
-using Saha.Domain.Entities;
-using RefreshTokenEntity = Saha.Domain.Entities.RefreshToken;
 using Saha.Domain.Interfaces.Repositories;
 
 namespace Saha.Application.Features.Auth.Commands.RefreshToken;
@@ -12,22 +9,22 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
 {
     private readonly ICoupleRepository _coupleRepository;
     private readonly ITokenService _tokenService;
+    private readonly IAuthTokenIssuer _tokenIssuer;
     private readonly IAuditLogger _auditLogger;
     private readonly ICurrentUserContext _currentUser;
-    private readonly IConfiguration _configuration;
 
     public RefreshTokenCommandHandler(
         ICoupleRepository coupleRepository,
         ITokenService tokenService,
+        IAuthTokenIssuer tokenIssuer,
         IAuditLogger auditLogger,
-        ICurrentUserContext currentUser,
-        IConfiguration configuration)
+        ICurrentUserContext currentUser)
     {
         _coupleRepository = coupleRepository;
         _tokenService = tokenService;
+        _tokenIssuer = tokenIssuer;
         _auditLogger = auditLogger;
         _currentUser = currentUser;
-        _configuration = configuration;
     }
 
     public async Task<RefreshTokenResult> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -44,25 +41,10 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
 
         var partner = couple.GetPartner(storedToken.PartnerId);
 
-        var newAccessToken = _tokenService.GenerateAccessToken(couple, partner);
-        var newRefreshTokenValue = _tokenService.GenerateRefreshToken();
-        var newRefreshTokenHash = _tokenService.HashToken(newRefreshTokenValue);
-
-        var refreshTokenTtlDays = _configuration.GetValue("Jwt:RefreshTokenTtlDays", 30);
-        var accessTokenTtlMinutes = _configuration.GetValue("Jwt:AccessTokenTtlMinutes", 15);
-        var refreshTokenExpiry = DateTime.UtcNow.AddDays(refreshTokenTtlDays);
-        var accessTokenExpiry = DateTime.UtcNow.AddMinutes(accessTokenTtlMinutes);
-
         couple.RevokeRefreshToken(tokenHash, "Rotated");
 
-        var newRefreshToken = RefreshTokenEntity.Create(
-            couple.Id,
-            partner.Id,
-            newRefreshTokenHash,
-            refreshTokenExpiry,
-            request.IpAddress ?? _currentUser.IpAddress ?? "unknown");
+        var tokens = _tokenIssuer.IssueFor(couple, partner, request.IpAddress ?? _currentUser.IpAddress);
 
-        couple.AddRefreshToken(newRefreshToken);
         await _coupleRepository.UpdateAsync(couple, cancellationToken);
 
         await _auditLogger.LogAsync(
@@ -74,10 +56,10 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
             cancellationToken: cancellationToken);
 
         return new RefreshTokenResult(
-            newAccessToken,
-            newRefreshTokenValue,
-            accessTokenExpiry,
-            refreshTokenExpiry);
+            tokens.AccessToken,
+            tokens.RefreshToken,
+            tokens.AccessTokenExpiresAt,
+            tokens.RefreshTokenExpiresAt);
     }
 
     private async Task<Saha.Domain.Entities.Couple?> FindCoupleByRefreshTokenAsync(

@@ -1,45 +1,40 @@
 using System.Diagnostics;
 using MediatR;
-using Microsoft.Extensions.Configuration;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
+using Saha.Application.Features.Auth.Common;
 using Saha.Application.Telemetry;
-using Saha.Domain.Entities;
-using RefreshTokenEntity = Saha.Domain.Entities.RefreshToken;
 using Saha.Domain.Interfaces.Repositories;
 using Saha.Domain.Interfaces.Services;
 
 namespace Saha.Application.Features.Auth.Commands.Login;
 
-public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
+public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResult>
 {
     private readonly ICoupleRepository _coupleRepository;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly ITokenService _tokenService;
+    private readonly IAuthTokenIssuer _tokenIssuer;
     private readonly IAuditLogger _auditLogger;
     private readonly ICurrentUserContext _currentUser;
-    private readonly IConfiguration _configuration;
     private readonly AuthMetrics _authMetrics;
 
     public LoginCommandHandler(
         ICoupleRepository coupleRepository,
         IPasswordHasher passwordHasher,
-        ITokenService tokenService,
+        IAuthTokenIssuer tokenIssuer,
         IAuditLogger auditLogger,
         ICurrentUserContext currentUser,
-        IConfiguration configuration,
         AuthMetrics authMetrics)
     {
         _coupleRepository = coupleRepository;
         _passwordHasher = passwordHasher;
-        _tokenService = tokenService;
+        _tokenIssuer = tokenIssuer;
         _auditLogger = auditLogger;
         _currentUser = currentUser;
-        _configuration = configuration;
         _authMetrics = authMetrics;
     }
 
-    public async Task<LoginResult> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<AuthResult> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
         _authMetrics.RecordLoginAttempt();
@@ -82,23 +77,8 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
 
         var partner = couple.FindPartnerByUsername(request.Username.ToLowerInvariant())!;
 
-        var accessToken = _tokenService.GenerateAccessToken(couple, partner);
-        var refreshTokenValue = _tokenService.GenerateRefreshToken();
-        var refreshTokenHash = _tokenService.HashToken(refreshTokenValue);
+        var tokens = _tokenIssuer.IssueFor(couple, partner, request.IpAddress ?? _currentUser.IpAddress);
 
-        var refreshTokenTtlDays = _configuration.GetValue("Jwt:RefreshTokenTtlDays", 30);
-        var refreshTokenExpiry = DateTime.UtcNow.AddDays(refreshTokenTtlDays);
-        var accessTokenTtlMinutes = _configuration.GetValue("Jwt:AccessTokenTtlMinutes", 15);
-        var accessTokenExpiry = DateTime.UtcNow.AddMinutes(accessTokenTtlMinutes);
-
-        var refreshToken = RefreshTokenEntity.Create(
-            couple.Id,
-            partner.Id,
-            refreshTokenHash,
-            refreshTokenExpiry,
-            request.IpAddress ?? _currentUser.IpAddress ?? "unknown");
-
-        couple.AddRefreshToken(refreshToken);
         await _coupleRepository.UpdateAsync(couple, cancellationToken);
 
         sw.Stop();
@@ -114,17 +94,6 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
             userAgent: _currentUser.UserAgent,
             cancellationToken: cancellationToken);
 
-        return new LoginResult(
-            AccessToken: accessToken,
-            RefreshToken: refreshTokenValue,
-            AccessTokenExpiresAt: accessTokenExpiry,
-            RefreshTokenExpiresAt: refreshTokenExpiry,
-            CoupleId: couple.Id,
-            PartnerId: partner.Id,
-            Username: partner.Username,
-            PartnerName: partner.Name,
-            TogetherID: couple.TogetherID,
-            Role: partner.Role.ToString(),
-            ProfilePictureUrl: partner.ProfilePictureUrl);
+        return AuthResult.From(couple, partner, tokens);
     }
 }

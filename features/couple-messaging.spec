@@ -39,8 +39,8 @@ Existing repo context:
 
 ## 4. Acceptance Criteria
 
-- [ ] Every registered couple has exactly one private partner chat.
-- [ ] The private partner chat is automatically available after registration.
+- [ ] Every **completed** couple has exactly one private partner chat. *(Amended 2026-07-10: a couple that has registered but whose partner has not yet accepted their invitation has only one partner, so it has no partner chat. See [`auth-login-registration.spec`](./auth-login-registration.spec).)*
+- [ ] The private partner chat is automatically available once the invited partner accepts — i.e. when the couple reaches state `Complete`, not at registration.
 - [ ] The private partner chat is always pinned above other conversations.
 - [ ] The private partner chat cannot be deleted.
 - [ ] Both partners in a couple can send messages in their private partner chat.

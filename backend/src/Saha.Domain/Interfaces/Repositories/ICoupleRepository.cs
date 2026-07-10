@@ -10,6 +10,7 @@ public interface ICoupleRepository
     Task<Couple?> GetByUsernameWithTokensAsync(string username, CancellationToken cancellationToken = default);
     Task<Couple?> GetByIdWithTokensAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Couple?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
+    Task<Couple?> GetByInvitationTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task<bool> ExistsByTogetherIDAsync(string togetherID, CancellationToken cancellationToken = default);
     Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Couple>> SearchByTogetherIDAsync(string partialTogetherID, int limit, CancellationToken cancellationToken = default);

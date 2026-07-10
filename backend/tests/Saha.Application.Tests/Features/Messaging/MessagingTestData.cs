@@ -1,4 +1,5 @@
 using Saha.Domain.Entities;
+using Saha.Domain.Enums;
 
 namespace Saha.Application.Tests.Features.Messaging;
 
@@ -6,22 +7,49 @@ internal static class MessagingTestData
 {
     private static int _counter;
 
+    /// <summary>A Complete couple: registered, then joined by its partner. Most messaging tests want this.</summary>
     public static Couple MakeCouple(string togetherId)
     {
         var n = Interlocked.Increment(ref _counter);
-        return Couple.Register(
+
+        var couple = Couple.Register(
             togetherId: togetherId,
-            husbandUsername: $"husb{n}",
-            husbandName: "Test Husband",
-            husbandDob: new DateTime(1990, 1, 1),
-            husbandEmail: $"husband{n}@test.com",
-            husbandPhone: "+11234567890",
-            wifeUsername: $"wife{n}",
-            wifeName: "Test Wife",
-            wifeDob: new DateTime(1992, 6, 15),
-            wifeEmail: $"wife{n}@test.com",
-            wifePhone: "+19876543210",
+            username: $"husb{n}",
+            name: "Test Husband",
+            dateOfBirth: new DateTime(1990, 1, 1),
+            email: $"husband{n}@test.com",
+            phoneNumber: "+11234567890",
+            role: PartnerRole.Husband,
             passwordHash: "hash");
+
+        couple.AcceptPartner(
+            username: $"wife{n}",
+            name: "Test Wife",
+            dateOfBirth: new DateTime(1992, 6, 15),
+            email: $"wife{n}@test.com",
+            phoneNumber: "+19876543210");
+
+        couple.ClearDomainEvents();
+        return couple;
+    }
+
+    /// <summary>A couple that has registered but whose partner has not yet accepted.</summary>
+    public static Couple MakeAwaitingPartnerCouple(string togetherId)
+    {
+        var n = Interlocked.Increment(ref _counter);
+
+        var couple = Couple.Register(
+            togetherId: togetherId,
+            username: $"solo{n}",
+            name: "Test Registrant",
+            dateOfBirth: new DateTime(1990, 1, 1),
+            email: $"solo{n}@test.com",
+            phoneNumber: "+11234567890",
+            role: PartnerRole.Husband,
+            passwordHash: "hash");
+
+        couple.ClearDomainEvents();
+        return couple;
     }
 
     public static CoupleConnection AcceptedConnection(Couple a, Couple b)
@@ -37,8 +65,8 @@ internal static class MessagingTestData
             owner.Id,
             new List<(Guid, Guid, Guid)>
             {
-                (owner.Id, owner.Husband.Id, owner.Wife.Id),
-                (other.Id, other.Husband.Id, other.Wife.Id)
+                (owner.Id, owner.RequireHusband().Id, owner.RequireWife().Id),
+                (other.Id, other.RequireHusband().Id, other.RequireWife().Id)
             },
             "Group");
     }

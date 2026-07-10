@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
 using Saha.Application.Features.Profile.Commands.UpdateProfile;
 using Saha.Application.Features.Profile.Commands.UploadProfilePicture;
@@ -31,11 +32,16 @@ public sealed class ProfileController : ApiControllerBase
     [HttpGet("partner")]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPartnerProfile(CancellationToken cancellationToken)
     {
         // We get the couple and return the OTHER partner's profile
         var myProfile = await Sender.Send(
             new GetProfileQuery(_currentUser.CoupleId, _currentUser.PartnerId), cancellationToken);
+
+        // A couple awaiting its partner has no other partner to describe.
+        if (myProfile.CoupleInfo.Partner is null)
+            throw new NotFoundException("Partner", _currentUser.CoupleId);
 
         // The partner's profile is embedded in CoupleInfo
         var partnerQuery = new GetProfileQuery(

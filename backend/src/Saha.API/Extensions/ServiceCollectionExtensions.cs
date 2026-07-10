@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
         // "RateLimiting" config section is absent.
         var authPermit = configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 5;
         var apiPermit = configuration.GetValue<int?>("RateLimiting:Api:PermitLimit") ?? 100;
+        var availabilityPermit = configuration.GetValue<int?>("RateLimiting:Availability:PermitLimit") ?? 30;
 
         services.AddRateLimiter(options =>
         {
@@ -78,6 +79,17 @@ public static class ServiceCollectionExtensions
                 limiter.Window = TimeSpan.FromMinutes(1);
                 limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                 limiter.QueueLimit = 5;
+            });
+
+            // Registration availability checks are debounced but still bursty: typing a 9-character
+            // TogetherID fires several. The "auth" limiter (5/min) would lock a user out of their own
+            // registration. This is looser, but the response is a bare boolean.
+            options.AddFixedWindowLimiter("availability", limiter =>
+            {
+                limiter.PermitLimit = availabilityPermit;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                limiter.QueueLimit = 0;
             });
 
             // Separate limiter for the frontend telemetry ingest endpoint
@@ -157,7 +169,12 @@ public static class ServiceCollectionExtensions
             });
         });
 
-        services.AddControllers();
+        // Roles arrive from the registration wizard as "Husband"/"Wife". Outbound DTOs already
+        // stringify their enums by hand, so this changes no existing response shape.
+        services.AddControllers()
+            .AddJsonOptions(options =>
+                options.JsonSerializerOptions.Converters.Add(
+                    new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
         // ── OpenTelemetry: traces → Grafana Tempo, metrics → Grafana Mimir ────
         AddOpenTelemetry(services, configuration);

@@ -48,7 +48,10 @@ public sealed class AddCoupleToConversationCommandHandler : IRequestHandler<AddC
         if (target is null)
             throw new NotFoundException("Couple", request.TargetCoupleId);
 
-        conversation.AddCouple(actingCoupleId, target.Id, target.Husband.Id, target.Wife.Id);
+        if (!target.IsComplete)
+            throw new ConflictException("COUPLE_INCOMPLETE", "That home is still waiting for a partner.");
+
+        conversation.AddCouple(actingCoupleId, target.Id, target.RequireHusband().Id, target.RequireWife().Id);
         await _conversationRepository.UpdateAsync(conversation, cancellationToken);
 
         await _auditLogger.LogAsync(

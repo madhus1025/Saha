@@ -51,6 +51,7 @@ public static class DependencyInjection
 
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<IAuthTokenIssuer, AuthTokenIssuer>();
         services.AddScoped<IAuditLogger, AuditLoggerService>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
