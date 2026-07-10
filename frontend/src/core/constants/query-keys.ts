@@ -2,6 +2,9 @@ export const queryKeys = {
   auth: {
     profile: ['auth', 'profile'] as const,
     partnerProfile: ['auth', 'partnerProfile'] as const,
+    session: ['auth', 'session'] as const,
+    availability: (field: 'username' | 'togetherId', value: string) =>
+      ['auth', 'availability', field, value] as const,
   },
   profile: {
     me: ['profile', 'me'] as const,

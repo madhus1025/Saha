@@ -12,6 +12,7 @@ const baseAuthData = {
   togetherID: 'MADHU-PRIYA',
   role: 'Husband' as const,
   profilePictureUrl: null,
+  coupleState: 'Complete' as const,
 }
 
 describe('useAuthStore', () => {

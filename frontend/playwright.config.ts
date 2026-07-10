@@ -36,6 +36,9 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env['CI'],
         timeout: 120_000,
+        // Registration is flagged off by default until the invite screens exist (R-4), but the
+        // wizard's e2e coverage still has to be able to reach it.
+        env: { VITE_REGISTRATION_ENABLED: 'true' },
       }
     : undefined,
 })

@@ -15,7 +15,7 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0' // trust the local self-signed dev cert
 
 const API = process.env.SAHA_API_BASE ?? 'https://localhost:7001/api/v1'
-const PASSWORD = 'Password1!'
+const PASSWORD = 'our quiet home by the sea' // >= 12 chars; no character-class rules
 const CONNECT = process.argv.includes('--connect')
 
 /** Stable, memorable roster. Re-running is safe: already-registered couples are skipped. */
@@ -49,22 +49,55 @@ async function ping() {
   }
 }
 
+/**
+ * Registration now creates the husband only; the wife arrives by accepting an invitation.
+ * Seeding therefore takes three calls: register -> invite -> accept.
+ */
 async function register(c) {
   const res = await fetch(`${API}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       togetherID: c.togetherID,
-      husbandUsername: c.husband.username, husbandName: c.husband.name,
-      husbandDateOfBirth: '1990-01-01T00:00:00Z', husbandEmail: c.husband.email, husbandPhoneNumber: c.husband.phone,
-      wifeUsername: c.wife.username, wifeName: c.wife.name,
-      wifeDateOfBirth: '1992-01-01T00:00:00Z', wifeEmail: c.wife.email, wifePhoneNumber: c.wife.phone,
-      password: PASSWORD, confirmPassword: PASSWORD,
+      username: c.husband.username,
+      name: c.husband.name,
+      dateOfBirth: '1990-01-01T00:00:00Z',
+      email: c.husband.email,
+      phoneNumber: c.husband.phone,
+      role: 'Husband',
+      password: PASSWORD,
+      confirmPassword: PASSWORD,
     }),
   })
-  if (res.status === 201) return { status: 'created', ...(await j(res)) }
   if (res.status === 409) return { status: 'exists' }
-  return { status: 'error', code: res.status, body: await res.text() }
+  if (res.status !== 201) return { status: 'error', code: res.status, body: await res.text() }
+
+  const registrant = await j(res)
+
+  const inviteRes = await fetch(`${API}/auth/invitations`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${registrant.accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inviteeName: c.wife.name, inviteeEmail: c.wife.email }),
+  })
+  if (inviteRes.status !== 201) return { status: 'error', code: inviteRes.status, body: await inviteRes.text() }
+
+  const { token } = await j(inviteRes)
+
+  const acceptRes = await fetch(`${API}/auth/invitations/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token,
+      username: c.wife.username,
+      name: c.wife.name,
+      dateOfBirth: '1992-01-01T00:00:00Z',
+      email: c.wife.email,
+      phoneNumber: c.wife.phone,
+    }),
+  })
+  if (!acceptRes.ok) return { status: 'error', code: acceptRes.status, body: await acceptRes.text() }
+
+  return { status: 'created', ...registrant }
 }
 
 async function login(username) {

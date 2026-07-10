@@ -7,13 +7,13 @@
 
 **Legend:** ✅ Done · 🟡 In Progress · ⛔ Blocked · ⬜ Not Started (stub/placeholder)
 
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-10
 
 ## Modules
 
 | Module | Status | Brief / Progress | Notes |
 |---|---|---|---|
-| auth (login/register/forgot/reset) | ✅ Done | — (pre-harness) | Built + unit/e2e tests |
+| auth (login/register/forgot/reset) | 🟡 In Progress | [brief](./active/auth-login-registration-brief.md) · [progress](./active/auth-login-registration-progress.md) | "Hearth" redesign: one-partner registration + couple lifecycle. Chunks 1–2/3 done (backend + login/wizard UI); Chunk 3 (invite screens) ⛔ blocked on design |
 | connect (couple-to-couple) | ✅ Done | — (pre-harness) | Built (~309 lines) + e2e |
 | dashboard | ✅ Done | — (pre-harness) | Built + e2e |
 | profile | ✅ Done | — (pre-harness) | Built + e2e |

@@ -26,7 +26,9 @@ export function useLogin() {
       setAuthData(data)
       // After login, attach the partner ID to future telemetry events
       telemetry.identify(data.partnerId)
-      navigate('/dashboard', { replace: true })
+
+      // A registrant whose partner has not yet accepted reaches the threshold, never a module.
+      navigate(data.coupleState === 'AwaitingPartner' ? '/waiting' : '/dashboard', { replace: true })
     },
     onError: (error) => {
       const apiError = extractApiError(error)

@@ -6,9 +6,10 @@ test.describe('Login', () => {
   })
 
   test('shows the login form @smoke', async ({ page }) => {
-    await expect(page.getByText('Welcome back')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome home' })).toBeVisible()
+    await expect(page.getByText('Either of your usernames opens the door.')).toBeVisible()
     await expect(page.getByLabel('Username')).toBeVisible()
-    await expect(page.getByLabel('Shared Password')).toBeVisible()
+    await expect(page.getByLabel('Your shared password')).toBeVisible()
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible()
   })
 
@@ -20,7 +21,7 @@ test.describe('Login', () => {
 
   test('shows error for invalid credentials', async ({ page }) => {
     await page.getByLabel('Username').fill('invaliduser')
-    await page.getByLabel('Shared Password').fill('wrongpassword')
+    await page.getByLabel('Your shared password').fill('wrongpassword')
     await page.getByRole('button', { name: /sign in/i }).click()
     // Any error toast is acceptable — message depends on backend availability
     await expect(
@@ -29,7 +30,7 @@ test.describe('Login', () => {
   })
 
   test('password toggle shows/hides password', async ({ page }) => {
-    const passwordInput = page.getByLabel('Shared Password')
+    const passwordInput = page.getByLabel('Your shared password')
     await passwordInput.fill('secret')
     expect(await passwordInput.getAttribute('type')).toBe('password')
 
@@ -41,34 +42,51 @@ test.describe('Login', () => {
   })
 
   test('navigates to register page @smoke', async ({ page }) => {
-    await page.getByRole('link', { name: /create your couple account/i }).click()
+    await page.getByRole('link', { name: /create our home/i }).click()
     await expect(page).toHaveURL('/register')
   })
 
   test('navigates to forgot password page', async ({ page }) => {
-    await page.getByRole('link', { name: /forgot password/i }).click()
+    await page.getByRole('link', { name: /forgot our password/i }).click()
     await expect(page).toHaveURL('/forgot-password')
   })
 
-  test('redirects to dashboard when already authenticated', async ({ page, context }) => {
-    // Set auth state in localStorage
-    await context.addInitScript(() => {
-      localStorage.setItem(
-        'saha-auth',
-        JSON.stringify({
-          state: {
-            isAuthenticated: true,
-            username: 'testuser',
-            togetherID: 'TEST-ID',
-            coupleId: 'fake-id',
-            partnerId: 'fake-partner-id',
-            role: 'Husband',
-          },
-          version: 0,
-        }),
-      )
-    })
+  test('offers the invitation path', async ({ page }) => {
+    await page.getByRole('link', { name: /i have an invitation/i }).click()
+    await expect(page).toHaveURL('/invite/accept')
+  })
+
+  const seedAuth = (coupleState: 'Complete' | 'AwaitingPartner') => `
+    localStorage.setItem('saha-auth', JSON.stringify({
+      state: {
+        isAuthenticated: true,
+        username: 'testuser',
+        togetherID: 'TEST-ID',
+        coupleId: 'fake-id',
+        partnerId: 'fake-partner-id',
+        role: 'Husband',
+        coupleState: '${coupleState}',
+      },
+      version: 0,
+    }))
+  `
+
+  test('redirects a complete couple to the dashboard', async ({ page, context }) => {
+    await context.addInitScript(seedAuth('Complete'))
     await page.goto('/login')
     await expect(page).toHaveURL('/dashboard')
+  })
+
+  test('redirects a registrant awaiting their partner to the threshold', async ({ page, context }) => {
+    // Sending them to /dashboard would bounce back here via CompleteCoupleRoute — a guard loop.
+    await context.addInitScript(seedAuth('AwaitingPartner'))
+    await page.goto('/login')
+    await expect(page).toHaveURL('/waiting')
+  })
+
+  test('keeps a registrant awaiting their partner out of the app', async ({ page, context }) => {
+    await context.addInitScript(seedAuth('AwaitingPartner'))
+    await page.goto('/messages')
+    await expect(page).toHaveURL('/waiting')
   })
 })
