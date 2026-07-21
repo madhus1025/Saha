@@ -9,7 +9,6 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 import {
   HAS_TZ_OFFSET,
   ORPHAN_GUID,
-  ROSTER,
   apiContext,
   apiLogin,
   auth,
