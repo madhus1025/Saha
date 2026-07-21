@@ -253,8 +253,8 @@ public sealed class AuthMetrics
 /// </summary>
 public static class FrontendEventNames
 {
-    public const string LoginPageViewed        = "auth.login.page_viewed";
-    public const string LoginButtonClicked     = "auth.login.button_clicked";
-    public const string RegisterPageViewed     = "auth.register.page_viewed";
-    public const string ForgotPasswordClicked  = "auth.forgot_password.clicked";
+    public const string LoginPageViewed = "auth.login.page_viewed";
+    public const string LoginButtonClicked = "auth.login.button_clicked";
+    public const string RegisterPageViewed = "auth.register.page_viewed";
+    public const string ForgotPasswordClicked = "auth.forgot_password.clicked";
 }

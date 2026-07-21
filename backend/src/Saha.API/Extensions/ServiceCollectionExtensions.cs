@@ -192,7 +192,7 @@ public static class ServiceCollectionExtensions
     private static void AddOpenTelemetry(IServiceCollection services, IConfiguration configuration)
     {
         var otlpEndpoint = configuration["Grafana:OtlpEndpoint"];
-        var otlpHeaders  = configuration["Grafana:OtlpHeaders"]; // "Authorization=Basic base64(instanceId:token)"
+        var otlpHeaders = configuration["Grafana:OtlpHeaders"]; // "Authorization=Basic base64(instanceId:token)"
 
         // Skip OTel setup when no endpoint is configured (local dev without Grafana Cloud)
         if (string.IsNullOrWhiteSpace(otlpEndpoint)) return;
@@ -202,9 +202,9 @@ public static class ServiceCollectionExtensions
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
                 .AddService(
-                    serviceName:        "saha-api",
-                    serviceVersion:     serviceVersion,
-                    serviceInstanceId:  Environment.MachineName))
+                    serviceName: "saha-api",
+                    serviceVersion: serviceVersion,
+                    serviceInstanceId: Environment.MachineName))
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation(opts =>
                 {
@@ -219,7 +219,7 @@ public static class ServiceCollectionExtensions
                 .AddOtlpExporter(opts =>
                 {
                     opts.Endpoint = new Uri(otlpEndpoint + "/v1/traces");
-                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    opts.Protocol = OtlpExportProtocol.HttpProtobuf;
                     if (!string.IsNullOrWhiteSpace(otlpHeaders))
                         opts.Headers = otlpHeaders;
                 }))
@@ -231,7 +231,7 @@ public static class ServiceCollectionExtensions
                 .AddOtlpExporter(opts =>
                 {
                     opts.Endpoint = new Uri(otlpEndpoint + "/v1/metrics");
-                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    opts.Protocol = OtlpExportProtocol.HttpProtobuf;
                     if (!string.IsNullOrWhiteSpace(otlpHeaders))
                         opts.Headers = otlpHeaders;
                 }));
