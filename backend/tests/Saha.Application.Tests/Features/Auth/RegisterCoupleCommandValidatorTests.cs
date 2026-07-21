@@ -17,8 +17,8 @@ public sealed class RegisterCoupleCommandValidatorTests
         Email: "madhu@example.com",
         PhoneNumber: "+911234567890",
         Role: PartnerRole.Husband,
-        Password: "our quiet home by the sea",
-        ConfirmPassword: "our quiet home by the sea");
+        Password: "Our quiet home by the sea 1!",
+        ConfirmPassword: "Our quiet home by the sea 1!");
 
     [Fact]
     public void Validate_WithValidCommand_Passes()
@@ -76,10 +76,12 @@ public sealed class RegisterCoupleCommandValidatorTests
         result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterCoupleCommand.Username));
     }
 
-    // ── Password: length only, no character classes (AC7) ─────────────────────
+    // ── Password: 8+ characters, all four character classes, 72-byte ceiling ──
+    // Registration and reset share this one policy (PasswordRules). When they diverged, a password
+    // legal at sign-up was refused at reset (SAHA-D01).
 
     [Fact]
-    public void Validate_WithPassphrase_HavingNoDigitSymbolOrCapital_Passes()
+    public void Validate_WithPassphrase_HavingNoDigitSymbolOrCapital_Fails()
     {
         const string passphrase = "correct horse battery staple";
 
@@ -89,17 +91,21 @@ public sealed class RegisterCoupleCommandValidatorTests
             ConfirmPassword = passphrase
         });
 
-        result.IsValid.Should().BeTrue();
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterCoupleCommand.Password));
     }
 
-    [Fact]
-    public void Validate_WithElevenCharacterPassword_FailsForLengthAlone()
+    [Theory]
+    [InlineData("sh0rt!xyz")] // no uppercase
+    [InlineData("SH0RT!XYZ")] // no lowercase
+    [InlineData("Short!xyz")] // no digit
+    [InlineData("Sh0rtxyzw")] // no special character
+    public void Validate_WithMissingCharacterClass_Fails(string password)
     {
-        // Eleven characters, containing all four classes the old policy demanded.
         var result = _validator.Validate(ValidCommand() with
         {
-            Password = "Sh0rt!Sh0rt",
-            ConfirmPassword = "Sh0rt!Sh0rt"
+            Password = password,
+            ConfirmPassword = password
         });
 
         result.IsValid.Should().BeFalse();
@@ -107,18 +113,32 @@ public sealed class RegisterCoupleCommandValidatorTests
     }
 
     [Fact]
-    public void Validate_WithExactlyTwelveCharacters_Passes()
+    public void Validate_WithSevenCharacterPassword_FailsForLengthAlone()
     {
-        var twelve = new string('a', 12);
+        // Seven characters, containing all four classes — only the length rule can reject it.
+        var result = _validator.Validate(ValidCommand() with
+        {
+            Password = "Sh0rt!x",
+            ConfirmPassword = "Sh0rt!x"
+        });
 
-        _validator.Validate(ValidCommand() with { Password = twelve, ConfirmPassword = twelve })
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterCoupleCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithExactlyEightCharacters_Passes()
+    {
+        const string eight = "Sh0rt!xy";
+
+        _validator.Validate(ValidCommand() with { Password = eight, ConfirmPassword = eight })
             .IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_WithExactlySeventyTwoBytes_Passes()
     {
-        var seventyTwo = new string('a', 72);
+        var seventyTwo = "Aa1!" + new string('b', 68);
 
         _validator.Validate(ValidCommand() with { Password = seventyTwo, ConfirmPassword = seventyTwo })
             .IsValid.Should().BeTrue();
@@ -128,7 +148,7 @@ public sealed class RegisterCoupleCommandValidatorTests
     public void Validate_WithSeventyThreeBytes_Fails()
     {
         // BCrypt would silently ignore everything past byte 72.
-        var seventyThree = new string('a', 73);
+        var seventyThree = "Aa1!" + new string('b', 69);
 
         var result = _validator.Validate(ValidCommand() with
         {
@@ -143,8 +163,8 @@ public sealed class RegisterCoupleCommandValidatorTests
     [Fact]
     public void Validate_CountsBytesNotCharacters_ForMultiByteCharacters()
     {
-        // 30 emoji × 4 bytes = 120 bytes, but only 30 "characters".
-        var emoji = string.Concat(Enumerable.Repeat("😀", 30));
+        // Character classes satisfied, so only the byte ceiling can reject: 24 characters, 84 bytes.
+        var emoji = "Aa1!" + string.Concat(Enumerable.Repeat("😀", 20));
 
         var result = _validator.Validate(ValidCommand() with { Password = emoji, ConfirmPassword = emoji });
 
@@ -155,7 +175,7 @@ public sealed class RegisterCoupleCommandValidatorTests
     [Fact]
     public void Validate_WithMismatchedConfirmation_Fails()
     {
-        var result = _validator.Validate(ValidCommand() with { ConfirmPassword = "something else here" });
+        var result = _validator.Validate(ValidCommand() with { ConfirmPassword = "Something else here 1!" });
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterCoupleCommand.ConfirmPassword));

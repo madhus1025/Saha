@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router'
+import { DocumentTitle } from './DocumentTitle'
 import { AuthLayout } from '@/shared/components/layout/AuthLayout'
 import { AppLayout } from '@/shared/components/layout/AppLayout'
 import { ProtectedRoute } from '@/shared/components/layout/ProtectedRoute'
@@ -35,7 +36,11 @@ import { NotFoundPage } from '@/shared/components/feedback/NotFoundPage'
  */
 const REGISTRATION_ENABLED = import.meta.env.VITE_REGISTRATION_ENABLED === 'true'
 
-export const router = createBrowserRouter([
+/**
+ * Pathless root that wraps every route, so the document title and the route announcement have a
+ * single place to live rather than being repeated in each layout (the 404 route has no layout).
+ */
+const routes = [
   {
     path: '/',
     element: <Navigate to="/dashboard" replace />,
@@ -47,10 +52,10 @@ export const router = createBrowserRouter([
       </GuestRoute>
     ),
     children: [
-      { path: 'login', element: <LoginPage /> },
-      { path: 'forgot-password', element: <ForgotPasswordPage /> },
-      { path: 'reset-password', element: <ResetPasswordPage /> },
-      { path: 'invite/accept', element: <AcceptInvitationPage /> },
+      { path: 'login', element: <LoginPage />, handle: { title: 'Sign in' } },
+      { path: 'forgot-password', element: <ForgotPasswordPage />, handle: { title: 'Forgot password' } },
+      { path: 'reset-password', element: <ResetPasswordPage />, handle: { title: 'Reset password' } },
+      { path: 'invite/accept', element: <AcceptInvitationPage />, handle: { title: 'Accept invitation' } },
     ],
   },
   {
@@ -66,6 +71,7 @@ export const router = createBrowserRouter([
       {
         path: 'register',
         element: REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/login" replace />,
+        handle: { title: 'Create our home' },
       },
     ],
   },
@@ -77,8 +83,8 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: 'waiting', element: <WaitingPage /> },
-      { path: 'invite', element: <InvitePage /> },
+      { path: 'waiting', element: <WaitingPage />, handle: { title: 'Waiting for your partner' } },
+      { path: 'invite', element: <InvitePage />, handle: { title: 'Invite your partner' } },
     ],
   },
   {
@@ -90,20 +96,33 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'finance', element: <FinancePage /> },
-      { path: 'memories', element: <MemoriesPage /> },
-      { path: 'goals', element: <GoalsPage /> },
-      { path: 'messages', element: <MessagesPage /> },
-      { path: 'messages/:conversationId', element: <MessagesPage /> },
-      { path: 'connect', element: <ConnectPage /> },
-      { path: 'calendar', element: <CalendarPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      { path: 'dashboard', element: <DashboardPage />, handle: { title: 'Home' } },
+      { path: 'finance', element: <FinancePage />, handle: { title: 'Finance' } },
+      { path: 'memories', element: <MemoriesPage />, handle: { title: 'Memories' } },
+      { path: 'goals', element: <GoalsPage />, handle: { title: 'Goals' } },
+      { path: 'messages', element: <MessagesPage />, handle: { title: 'Messages' } },
+      { path: 'messages/:conversationId', element: <MessagesPage />, handle: { title: 'Messages' } },
+      { path: 'connect', element: <ConnectPage />, handle: { title: 'Connect' } },
+      { path: 'calendar', element: <CalendarPage />, handle: { title: 'Calendar' } },
+      { path: 'settings', element: <SettingsPage />, handle: { title: 'Settings' } },
+      { path: 'profile', element: <ProfilePage />, handle: { title: 'Profile' } },
     ],
   },
   {
     path: '*',
     element: <NotFoundPage />,
+    handle: { title: 'Page not found' },
+  },
+]
+
+export const router = createBrowserRouter([
+  {
+    element: (
+      <>
+        <DocumentTitle />
+        <Outlet />
+      </>
+    ),
+    children: routes,
   },
 ])

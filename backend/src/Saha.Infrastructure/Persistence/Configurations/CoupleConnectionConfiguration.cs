@@ -24,7 +24,13 @@ public sealed class CoupleConnectionConfiguration : IEntityTypeConfiguration<Cou
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();
 
+        // Unique, not merely indexed. The send handler checks for an existing connection and then
+        // inserts; without a database-level constraint two concurrent identical requests can both
+        // pass the check and both insert, breaking the one-relation-per-pair invariant (SAHA-D17).
+        // The application check remains the primary path — this is the guard that actually holds
+        // under concurrency, and the repository maps its violation back to the same 409.
         builder.HasIndex(c => new { c.CoupleAId, c.CoupleBId })
+            .IsUnique()
             .HasDatabaseName("IX_CoupleConnections_CoupleAId_CoupleBId");
 
         builder.HasIndex(c => c.Status)

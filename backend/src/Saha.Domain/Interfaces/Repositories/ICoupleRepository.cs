@@ -13,6 +13,12 @@ public interface ICoupleRepository
     Task<Couple?> GetByInvitationTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task<bool> ExistsByTogetherIDAsync(string togetherID, CancellationToken cancellationToken = default);
     Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// True when the email belongs to a partner other than <paramref name="excludingPartnerId"/>.
+    /// The exclusion is what makes this usable on update, where re-saving your own address must not
+    /// collide with yourself.
+    /// </summary>
+    Task<bool> ExistsByEmailAsync(string email, Guid? excludingPartnerId = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Couple>> SearchByTogetherIDAsync(string partialTogetherID, int limit, CancellationToken cancellationToken = default);
     Task AddAsync(Couple couple, CancellationToken cancellationToken = default);
     Task UpdateAsync(Couple couple, CancellationToken cancellationToken = default);

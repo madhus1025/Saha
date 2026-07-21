@@ -11,7 +11,7 @@ namespace Saha.API.Tests.Infrastructure;
 /// </summary>
 public static class AuthFlow
 {
-    public const string DefaultPassword = "our quiet home by the sea";
+    public const string DefaultPassword = "Our quiet home by the sea 1!";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 

@@ -49,16 +49,18 @@ test('edit form rejects an invalid email and phone number', async ({ page }) => 
 })
 
 test('the partner tab is read-only (no edit control)', async ({ page }) => {
-  await page.getByRole('button', { name: /'s Profile/ }).click()
+  await page.getByRole('tab', { name: /'s Profile/ }).click()
   await expect(page.getByText(`@${couple.partner.username}`)).toBeVisible()
   // No "Edit" button on the partner's profile.
   await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0)
 })
 
-test('"View as partner" enters a read-only banner mode that can be exited', async ({ page }) => {
-  await page.getByRole('button', { name: /'s Profile/ }).click()
+test('"View as partner" enters a banner mode that can be exited', async ({ page }) => {
+  await page.getByRole('tab', { name: /'s Profile/ }).click()
   await page.getByRole('button', { name: 'View as partner' }).click()
-  await expect(page.getByText(/Read Only Mode/)).toBeVisible()
+  // The banner names the mode without claiming a read-only guarantee the app does not
+  // enforce — partner view is local presentation state, not impersonation (SAHA-D16).
+  await expect(page.getByText(/Viewing .+’s profile/)).toBeVisible()
   await page.getByRole('button', { name: 'Exit partner view' }).click()
-  await expect(page.getByText(/Read Only Mode/)).toHaveCount(0)
+  await expect(page.getByText(/Viewing .+’s profile/)).toHaveCount(0)
 })

@@ -15,7 +15,7 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0' // trust the local self-signed dev cert
 
 const API = process.env.SAHA_API_BASE ?? 'https://localhost:7001/api/v1'
-const PASSWORD = 'our quiet home by the sea' // >= 12 chars; no character-class rules
+const PASSWORD = 'Our quiet home by the sea 1!' // matches PasswordRules: >= 8 chars, upper + lower + digit + special, <= 72 bytes
 const CONNECT = process.argv.includes('--connect')
 
 /** Stable, memorable roster. Re-running is safe: already-registered couples are skipped. */

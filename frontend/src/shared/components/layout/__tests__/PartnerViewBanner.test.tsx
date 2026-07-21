@@ -30,8 +30,10 @@ describe('PartnerViewBanner', () => {
 
     render(<PartnerViewBanner />)
 
-    expect(screen.getByText(/Viewing as Priya Avinash/i)).toBeInTheDocument()
-    expect(screen.getByText(/Read Only Mode/i)).toBeInTheDocument()
+    expect(screen.getByText(/Viewing Priya Avinash’s profile/i)).toBeInTheDocument()
+    // The banner must not claim a read-only guarantee the app does not enforce: partner view is
+    // local presentation state that only suppresses the Profile edit controls (SAHA-D16).
+    expect(screen.queryByText(/Read Only/i)).not.toBeInTheDocument()
   })
 
   it('should not render banner content when not in partner view mode', () => {

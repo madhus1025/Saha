@@ -16,7 +16,7 @@ import { request, type APIRequestContext, type Page, expect } from '@playwright/
 export const API_BASE = process.env['SAHA_API_BASE'] ?? 'https://localhost:7001/api/v1'
 
 /** Shared password that satisfies the register validator (>= 12 chars, <= 72 bytes). */
-export const SEED_PASSWORD = 'our quiet home by the sea'
+export const SEED_PASSWORD = 'Our quiet home by the sea 1!'
 
 export type Role = 'Husband' | 'Wife'
 

@@ -1,11 +1,17 @@
 import { z } from 'zod'
 
 /**
- * BCrypt truncates its input at 72 **bytes**, so the ceiling is a byte count, not a character
- * count: a 30-emoji passphrase is 30 characters but 120 bytes, and everything past byte 72 would
- * be silently ignored.
+ * Mirrors the server's single password policy (`PasswordRules.cs`): at least 8 characters, one of
+ * each character class, and at most 72 **bytes**.
+ *
+ * The ceiling is a byte count, not a character count, because BCrypt truncates its input at 72
+ * bytes: a 30-emoji password is 30 characters but 120 bytes, and everything past byte 72 would be
+ * silently ignored — so two passwords sharing a 72-byte prefix would both verify.
+ *
+ * Registration and password reset must agree. When they disagreed, a password legal at sign-up was
+ * refused at reset (SAHA-D01).
  */
-export const PASSWORD_MIN_LENGTH = 12
+export const PASSWORD_MIN_LENGTH = 8
 export const PASSWORD_MAX_BYTES = 72
 
 export const passwordByteLength = (value: string) => new TextEncoder().encode(value).length
@@ -58,12 +64,18 @@ export const registerStepOneSchema = z.object({
     .regex(/^\+?[1-9]\d{6,14}$/, 'Enter a valid international number, like +31 6 1204 8890.'),
 })
 
-/** Step 2 · One key — length only. No character-class rules; nothing here scolds. */
+/** Step 2 · One key — the same policy the reset form and the server enforce. */
 export const registerStepTwoSchema = z
   .object({
+    // `.refine()` widens the type to ZodEffects, which has no `.regex()` — so the character-class
+    // rules come first and the byte-length check closes the chain.
     password: z
       .string()
       .min(PASSWORD_MIN_LENGTH, `A little longer — at least ${PASSWORD_MIN_LENGTH} characters.`)
+      .regex(/[A-Z]/, 'Add at least one uppercase letter.')
+      .regex(/[a-z]/, 'Add at least one lowercase letter.')
+      .regex(/[0-9]/, 'Add at least one number.')
+      .regex(/[^a-zA-Z0-9]/, 'Add at least one special character.')
       .refine(
         (value) => passwordByteLength(value) <= PASSWORD_MAX_BYTES,
         'That’s longer than we can keep safe. Try something a little shorter.',

@@ -46,8 +46,8 @@ public sealed class RegisterCoupleCommandHandlerTests
             Email: "madhu@example.com",
             PhoneNumber: "+911234567890",
             Role: role,
-            Password: "our quiet home by the sea",
-            ConfirmPassword: "our quiet home by the sea");
+            Password: "Our quiet home by the sea 1!",
+            ConfirmPassword: "Our quiet home by the sea 1!");
 
     [Fact]
     public async Task Handle_CreatesCoupleWithOneRegistrant_AwaitingPartner()
@@ -111,7 +111,7 @@ public sealed class RegisterCoupleCommandHandlerTests
         await _handler.Handle(Command(), CancellationToken.None);
 
         saved!.PasswordHash.Should().Be("hashed");
-        _passwordHasher.Received(1).Hash("our quiet home by the sea");
+        _passwordHasher.Received(1).Hash("Our quiet home by the sea 1!");
     }
 
     [Fact]

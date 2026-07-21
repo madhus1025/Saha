@@ -50,18 +50,20 @@ test.describe('Settings', () => {
   })
 
   test('offers Light, Dark and System appearance options', async ({ page }) => {
+    // The appearance options are a radiogroup, so the selected one is exposed to assistive
+    // technology rather than carried by colour alone (SAHA-D10).
     for (const label of ['Light', 'Dark', 'System']) {
-      await expect(page.getByRole('button', { name: label })).toBeVisible()
+      await expect(page.getByRole('radio', { name: label })).toBeVisible()
     }
   })
 
   test('selecting Dark applies the dark theme and persists across reload', async ({ page }) => {
-    await page.getByRole('button', { name: 'Dark' }).click()
+    await page.getByRole('radio', { name: 'Dark' }).click()
     await expect(page.locator('html')).toHaveClass(/dark/)
     await page.reload()
     await expect(page.locator('html')).toHaveClass(/dark/, { timeout: 15_000 })
     // Reset back to Light so the choice doesn't leak into other tests sharing storage.
-    await page.getByRole('button', { name: 'Light' }).click()
+    await page.getByRole('radio', { name: 'Light' }).click()
     await expect(page.locator('html')).not.toHaveClass(/dark/)
   })
 })

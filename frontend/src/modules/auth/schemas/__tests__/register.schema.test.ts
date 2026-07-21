@@ -89,29 +89,45 @@ describe('registerStepTwoSchema — one key', () => {
   const ok = (password: string) =>
     registerStepTwoSchema.safeParse({ password, confirmPassword: password }).success
 
-  it('accepts a passphrase with no digit, symbol, or capital', () => {
-    expect(ok('correct horse battery staple')).toBe(true)
+  // These mirror the server's PasswordRules exactly. Registration and reset share one policy —
+  // when they diverged, a password legal here was refused at reset (SAHA-D01).
+
+  it('rejects a passphrase with no digit, symbol, or capital', () => {
+    expect(ok('correct horse battery staple')).toBe(false)
   })
 
-  it('rejects eleven characters even when they contain every character class', () => {
-    expect(ok('Sh0rt!Sh0rt')).toBe(false)
+  it('rejects seven characters even when they contain every character class', () => {
+    expect(ok('Sh0rt!x')).toBe(false)
   })
 
-  it('accepts exactly twelve characters', () => {
-    expect(ok('a'.repeat(12))).toBe(true)
+  it('accepts exactly eight characters with every character class', () => {
+    expect(ok('Sh0rt!xy')).toBe(true)
+  })
+
+  it.each([
+    ['no uppercase', 'sh0rt!xy'],
+    ['no lowercase', 'SH0RT!XY'],
+    ['no digit', 'Short!xy'],
+    ['no special character', 'Sh0rtxyz'],
+  ])('rejects a password with %s', (_label, password) => {
+    expect(ok(password)).toBe(false)
   })
 
   it('accepts exactly seventy-two bytes', () => {
-    expect(ok('a'.repeat(72))).toBe(true)
+    const password = `Aa1!${'b'.repeat(68)}`
+    expect(passwordByteLength(password)).toBe(72)
+    expect(ok(password)).toBe(true)
   })
 
   it('rejects seventy-three bytes', () => {
     // BCrypt silently ignores everything past byte 72.
-    expect(ok('a'.repeat(73))).toBe(false)
+    const password = `Aa1!${'b'.repeat(69)}`
+    expect(passwordByteLength(password)).toBe(73)
+    expect(ok(password)).toBe(false)
   })
 
-  it('counts bytes, not characters, for multi-byte passphrases', () => {
-    const emoji = '😀'.repeat(30) // 30 characters, 120 bytes
+  it('counts bytes, not characters, for multi-byte passwords', () => {
+    const emoji = `Aa1!${'😀'.repeat(20)}` // 24 characters, 84 bytes
     expect(emoji.length).toBeLessThan(72)
     expect(passwordByteLength(emoji)).toBeGreaterThan(72)
     expect(ok(emoji)).toBe(false)
@@ -119,7 +135,7 @@ describe('registerStepTwoSchema — one key', () => {
 
   it('requires the confirmation to match', () => {
     const result = registerStepTwoSchema.safeParse({
-      password: 'our quiet home by the sea',
+      password: 'Our quiet home by the sea 1!',
       confirmPassword: 'something else entirely',
     })
     expect(result.success).toBe(false)

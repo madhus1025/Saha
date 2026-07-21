@@ -65,7 +65,9 @@ test.describe('Theme toggle', () => {
 test.describe('Not found', () => {
   test('an unknown route renders the 404 page', async ({ page }) => {
     await page.goto('/this-route-does-not-exist')
-    await expect(page.getByText('Page not found')).toBeVisible()
+    // Target the heading specifically: the route-change live region also names the page, so a
+    // substring text match would resolve to both it and the <h1>.
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
   })
 })
 

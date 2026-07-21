@@ -38,8 +38,20 @@ public sealed class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, 
         var take = Math.Clamp(request.Take, 1, MaxTake);
         long? beforeTicks = null;
         Guid? beforeId = null;
-        if (MessageCursor.TryDecode(request.Before, out var ticks, out var id))
+
+        // "No cursor" and "a cursor we cannot read" are different things. Treating the second as
+        // the first silently hands back page one, so an infinite-scroll client re-appends messages
+        // it already holds and never reaches the end of the history.
+        if (!string.IsNullOrWhiteSpace(request.Before))
         {
+            if (!MessageCursor.TryDecode(request.Before, out var ticks, out var id))
+            {
+                throw new ApplicationValidationException(new Dictionary<string, string[]>
+                {
+                    ["before"] = ["The pagination cursor is not valid."],
+                });
+            }
+
             beforeTicks = ticks;
             beforeId = id;
         }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Pin, PinOff, Search, Trash2, X } from 'lucide-react'
 import { connectApi } from '@/core/api/connect.api'
@@ -10,6 +10,16 @@ import { cn } from '@/core/utils/cn'
 import type { ConversationDetailDto, ConversationSummaryDto } from '@/core/types/api.types'
 import { useConversationMutations } from '../hooks/use-messaging'
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Modal dialog with the behaviour `aria-modal="true"` promises.
+ *
+ * Previously it declared the role but implemented none of it (SAHA-D12): focus stayed on the
+ * trigger outside the dialog, Tab wandered into the page a screen reader had been told was inert,
+ * Escape did nothing, and closing dropped focus on the body. All four are handled here.
+ */
 function Modal({
   title,
   onClose,
@@ -19,16 +29,60 @@ function Modal({
   onClose: () => void
   children: React.ReactNode
 }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Captured before focus moves, so it can be handed back on close.
+  const previouslyFocused = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    previouslyFocused.current = document.activeElement as HTMLElement | null
+
+    const panel = panelRef.current
+    // Prefer the first real control; fall back to the panel so focus is never left outside.
+    const first = panel?.querySelector<HTMLElement>(FOCUSABLE)
+    ;(first ?? panel)?.focus()
+
+    return () => previouslyFocused.current?.focus?.()
+  }, [])
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation()
+      onClose()
+      return
+    }
+
+    if (event.key !== 'Tab') return
+
+    const focusable = Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
+    if (focusable.length === 0) return
+
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+    const active = document.activeElement
+
+    // Wrap at both ends so Tab and Shift+Tab stay inside the dialog.
+    if (!event.shiftKey && active === last) {
+      event.preventDefault()
+      first.focus()
+    } else if (event.shiftKey && (active === first || active === panelRef.current)) {
+      event.preventDefault()
+      last.focus()
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+      onKeyDown={handleKeyDown}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white dark:bg-sandstone-900 shadow-xl p-5 space-y-4"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className="w-full max-w-md rounded-2xl bg-white dark:bg-sandstone-900 shadow-xl p-5 space-y-4 focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

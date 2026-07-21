@@ -89,21 +89,24 @@ public sealed class AuthControllerTests : IClassFixture<SahaWebApplicationFactor
     }
 
     [Fact]
-    public async Task Register_ShouldAcceptAPassphrase_WithNoDigitsOrSymbols()
+    public async Task Register_ShouldReject_APassphraseWithNoDigitsOrSymbols()
     {
+        // Registration and reset share one policy (PasswordRules), and it requires every character
+        // class. A bare passphrase is refused on both paths rather than only on reset (SAHA-D01).
         var request = AuthFlow.RegisterRequest("TEST-PASSPHRASE1", "passphraseuser", "passphrase@test.com",
             password: "correct horse battery staple");
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task Register_ShouldReturn400_WhenPasswordExceedsSeventyTwoBytes()
     {
+        // Character classes satisfied, so only the BCrypt byte ceiling can reject this.
         var request = AuthFlow.RegisterRequest("TEST-LONGPASS01", "longpassuser", "longpass@test.com",
-            password: new string('a', 73));
+            password: "Aa1!" + new string('b', 69));
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", request);
 
