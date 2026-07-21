@@ -83,7 +83,7 @@ test.describe('Profile', () => {
   })
 
   test('shows My Profile tab active by default', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /my profile/i })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /my profile/i })).toBeVisible()
   })
 
   test('shows own name and role', async ({ page }) => {
@@ -151,7 +151,7 @@ test.describe('Profile', () => {
   })
 
   test('switches to partner tab and shows partner profile read-only', async ({ page }) => {
-    await page.getByRole('button', { name: /priya avinash.*profile/i }).click()
+    await page.getByRole('tab', { name: /priya avinash.*profile/i }).click()
     await expect(page.getByText('Priya Avinash').first()).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('@priya · Wife')).toBeVisible()
     await expect(page.getByText('priya@saha.test')).toBeVisible()
@@ -159,13 +159,13 @@ test.describe('Profile', () => {
   })
 
   test('partner tab has no Edit button', async ({ page }) => {
-    await page.getByRole('button', { name: /priya avinash.*profile/i }).click()
+    await page.getByRole('tab', { name: /priya avinash.*profile/i }).click()
     await page.waitForTimeout(500)
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).not.toBeVisible()
   })
 
   test('partner tab shows View as partner button', async ({ page }) => {
-    await page.getByRole('button', { name: /priya avinash.*profile/i }).click()
+    await page.getByRole('tab', { name: /priya avinash.*profile/i }).click()
     await expect(page.getByRole('button', { name: /view as partner/i })).toBeVisible({ timeout: 5000 })
   })
 
@@ -213,7 +213,7 @@ test.describe('Profile – avatar illustration', () => {
 
     await page.goto('/profile')
     await expect(page.getByText('Madhu Avinash').first()).toBeVisible({ timeout: 5000 })
-    await page.getByRole('button', { name: /priya avinash.*profile/i }).click()
+    await page.getByRole('tab', { name: /priya avinash.*profile/i }).click()
     await expect(page.getByText('Priya Avinash').first()).toBeVisible({ timeout: 5000 })
 
     const avatarImg = page.locator('img[alt="Priya Avinash"]').first()
@@ -321,7 +321,7 @@ test.describe('Profile – photo upload', () => {
   })
 
   test('camera button is not visible on partner tab (read-only)', async ({ page }) => {
-    await page.getByRole('button', { name: /priya avinash.*profile/i }).click()
+    await page.getByRole('tab', { name: /priya avinash.*profile/i }).click()
     await expect(page.getByText('Priya Avinash').first()).toBeVisible({ timeout: 5000 })
     await expect(page.getByLabel('Change profile picture')).not.toBeVisible()
   })

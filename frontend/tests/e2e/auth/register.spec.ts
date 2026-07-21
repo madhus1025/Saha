@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
 
+/**
+ * Satisfies the shared password policy — 28 characters with an uppercase, a lowercase, a digit and
+ * a special character — and is long and word-rich enough to score "Good" on the strength meter.
+ */
+const VALID_PASSWORD = 'Correct horse battery staple 1!'
+
 /** Fills step 1 with valid details and continues. */
 async function completeStepOne(page: import('@playwright/test').Page, username = 'maya.k') {
   await page.getByLabel('Your name').fill('Maya Krishnan')
@@ -49,47 +55,61 @@ test.describe('Registration wizard', () => {
     await expect(page.getByText('You need to be at least 16.')).toBeVisible()
   })
 
-  test('step 2 accepts a passphrase with no digits or symbols', async ({ page }) => {
+  // Registration shares one password policy with password reset: at least 8 characters with an
+  // uppercase, a lowercase, a digit and a special character, capped at 72 UTF-8 bytes. The two
+  // paths previously disagreed, so a password legal at sign-up was refused at reset (SAHA-D01).
+
+  test('step 2 accepts a long passphrase that meets every character class', async ({ page }) => {
     await completeStepOne(page)
 
     await expect(page.getByRole('heading', { name: 'One key for your home' })).toBeVisible()
     await expect(page.getByText('Step 2 of 3')).toBeVisible()
 
-    await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple')
+    await page.getByLabel('Password', { exact: true }).fill(VALID_PASSWORD)
     await expect(page.getByText('Good — long and easy to say out loud')).toBeVisible()
 
-    await page.getByLabel('Once more').fill('correct horse battery staple')
+    await page.getByLabel('Once more').fill(VALID_PASSWORD)
     await page.getByRole('button', { name: /continue/i }).click()
 
     await expect(page.getByRole('heading', { name: 'The name on your door' })).toBeVisible()
   })
 
-  test('step 2 blocks a password below twelve characters, however complex', async ({ page }) => {
+  test('step 2 rejects a passphrase with no digits, symbols or capitals', async ({ page }) => {
     await completeStepOne(page)
 
-    await page.getByLabel('Password', { exact: true }).fill('Sh0rt!Sh0rt')
-    await page.getByLabel('Once more').fill('Sh0rt!Sh0rt')
+    await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple')
+    await page.getByLabel('Once more').fill('correct horse battery staple')
     await page.getByRole('button', { name: /continue/i }).click()
 
-    await expect(page.getByText('A little longer — at least 12 characters.')).toBeVisible()
+    await expect(page.getByText('Add at least one uppercase letter.')).toBeVisible()
   })
 
-  test('step 2 warns about a weak passphrase without blocking it', async ({ page }) => {
+  test('step 2 blocks a password below eight characters, however complex', async ({ page }) => {
     await completeStepOne(page)
 
-    const weakButValid = 'aaaaaaaaaaaa' // 12 chars, low entropy
+    await page.getByLabel('Password', { exact: true }).fill('Sh0rt!x')
+    await page.getByLabel('Once more').fill('Sh0rt!x')
+    await page.getByRole('button', { name: /continue/i }).click()
+
+    await expect(page.getByText('A little longer — at least 8 characters.')).toBeVisible()
+  })
+
+  test('step 2 warns about a weak-but-valid password without blocking it', async ({ page }) => {
+    await completeStepOne(page)
+
+    const weakButValid = 'Aa1!aaaa' // exactly 8, every class, low entropy
     await page.getByLabel('Password', { exact: true }).fill(weakButValid)
     await page.getByLabel('Once more').fill(weakButValid)
     await page.getByRole('button', { name: /continue/i }).click()
 
-    // Nothing scolds; Continue still works.
+    // The strength meter is advisory — it never gates Continue.
     await expect(page.getByRole('heading', { name: 'The name on your door' })).toBeVisible()
   })
 
   test('step 3 uppercases the TogetherID as you type', async ({ page }) => {
     await completeStepOne(page)
-    await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple')
-    await page.getByLabel('Once more').fill('correct horse battery staple')
+    await page.getByLabel('Password', { exact: true }).fill(VALID_PASSWORD)
+    await page.getByLabel('Once more').fill(VALID_PASSWORD)
     await page.getByRole('button', { name: /continue/i }).click()
 
     const input = page.getByLabel('TogetherID')

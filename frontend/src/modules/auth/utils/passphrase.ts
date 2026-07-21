@@ -7,17 +7,17 @@ export interface PassphraseStrength {
 }
 
 /**
- * Qualitative and warm, never numeric. Length carries most of the weight because a long phrase two
- * people both remember beats a mandated symbol.
+ * Qualitative and warm, never numeric. Length carries most of the weight: a long phrase two people
+ * both remember is easier to live with than a short one bristling with symbols.
  *
- * Below {@link PASSWORD_MIN_LENGTH} the password is *invalid*, not merely weak — that floor is
- * enforced by the schema, and is the only thing that blocks Continue.
+ * This is advisory only. What actually blocks Continue is the schema — the length floor *and* the
+ * character-class rules, which registration shares with password reset (see `PasswordRules.cs`).
  */
 export function assessPassphrase(password: string): PassphraseStrength {
   if (password.length === 0) return { score: 0, label: '' }
 
   if (password.length < PASSWORD_MIN_LENGTH) {
-    return { score: 0, label: 'A little longer — at least 12 characters' }
+    return { score: 0, label: `A little longer — at least ${PASSWORD_MIN_LENGTH} characters` }
   }
 
   if (passwordByteLength(password) > 72) {
