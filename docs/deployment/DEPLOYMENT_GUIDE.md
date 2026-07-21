@@ -12,15 +12,42 @@
 | `stapp-saha-prod` | Static Web App | Standard | Frontend hosting + CDN |
 | `kv-saha-prod` | Key Vault | Standard | Secrets management |
 
-## Initial Azure Setup (One-Time)
+## Environments & CD triggers
+
+The `CD` workflow deploys to one of two environments; the target is derived from the trigger:
+
+| Trigger | Environment | Resource group | App Service | Static Web App |
+|---|---|---|---|---|
+| push to `main` | **prod** | `rg-saha-prod` | `app-saha-api-prod` | `stapp-saha-prod` |
+| push to `develop` | **staging** | `rg-saha-staging` | `app-saha-api-staging` | `stapp-saha-staging` |
+| manual `workflow_dispatch` | chosen (`prod`/`staging`) | `rg-saha-<env>` | `app-saha-api-<env>` | `stapp-saha-<env>` |
+
+Run a manual deploy with `gh workflow run cd.yml -f environment=staging` (or `prod`).
+
+The `provision` job runs an **idempotent `az group create`**, so a brand-new environment no longer
+fails on a missing resource group — provided the service principal can create resource groups (see
+the permission note below). Each environment needs its own Azure resources, a matching OIDC
+federated credential, and (if you scope secrets per environment) its own GitHub Environment secrets.
+
+## Initial Azure Setup (One-Time, per environment)
 
 ### 1. Create the Resource Group
+
+CD now creates the group automatically on first deploy, **but only if the service principal has
+resource-group-create rights at the subscription scope**. The role assignment in step 2 below is
+scoped to a single resource group, which is *not* enough to create it — so either broaden that
+assignment to the subscription (or a role with `Microsoft.Resources/subscriptions/resourceGroups/write`),
+or create the groups once by hand:
 
 ```bash
 az login
 az account set --subscription <YOUR_SUBSCRIPTION_ID>
-az group create --name rg-saha-prod --location eastus2
+az group create --name rg-saha-prod    --location centralus   # prod
+az group create --name rg-saha-staging --location centralus   # staging
 ```
+
+> Location note: the `CD` workflow passes `location=centralus`, so create the groups in `centralus`
+> to keep every resource in one region.
 
 ### 2. Create a Service Principal for GitHub Actions
 
@@ -45,6 +72,13 @@ az ad app federated-credential create \
     "audiences": ["api://AzureADTokenExchange"]
   }'
 ```
+
+> **Staging OIDC:** the credential above only matches `main`. A push to `develop` (staging) will fail
+> Azure login until you add a second federated credential for it — e.g. subject
+> `repo:your-org/saha:ref:refs/heads/develop`. Because the CD jobs also declare a GitHub
+> `environment:`, an environment-subject credential (`repo:your-org/saha:environment:staging` and
+> `…:environment:prod`) works too and is often cleaner. Grant the service principal `Contributor` on
+> `rg-saha-staging` (and at subscription scope if you rely on the automatic `az group create`).
 
 ### 3. Configure GitHub Secrets
 
@@ -81,7 +115,8 @@ az deployment group create \
 
 ## Deployment Pipeline
 
-Every push to `main` triggers:
+A push to `main` deploys **prod**; a push to `develop` deploys **staging** (same stages, different
+environment). Each triggers:
 
 ```
 CI (all tests pass)
