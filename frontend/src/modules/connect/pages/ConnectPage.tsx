@@ -25,10 +25,11 @@ export function ConnectPage() {
     enabled: activeTab === 'connections',
   })
 
+  // Always fetched (not gated on the active tab) so the "Pending" tab's count badge is accurate
+  // from first load — its whole purpose is to alert from the other tabs.
   const { data: pendingConnections } = useQuery({
     queryKey: queryKeys.connect.connections('Pending'),
     queryFn: () => connectApi.getConnections('Pending'),
-    enabled: activeTab === 'pending',
   })
 
   const { data: searchResults, isLoading: isSearching } = useQuery({
@@ -155,6 +156,7 @@ export function ConnectPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        aria-label="Decline request"
                         onClick={() => rejectMutation.mutate(conn.connectionId)}
                         loading={rejectMutation.isPending}
                       >

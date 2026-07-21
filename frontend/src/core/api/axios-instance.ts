@@ -46,6 +46,22 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = []
 }
 
+/**
+ * Unauthenticated auth entry points. A 401 from any of these means the request itself failed (e.g.
+ * wrong password), NOT that an access token expired — so they must never trigger the token-refresh
+ * retry. Doing so would replace the real error ("Invalid username or password.") with a confusing
+ * "Refresh token not found." from the spurious /auth/refresh call. (/auth/session is intentionally
+ * absent: it is authenticated and SHOULD refresh on a 401.)
+ */
+const NO_REFRESH_RETRY_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/invitations/accept',
+]
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -54,7 +70,7 @@ apiClient.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/refresh')
+      !NO_REFRESH_RETRY_PATHS.some((path) => originalRequest.url?.includes(path))
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

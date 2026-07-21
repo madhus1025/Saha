@@ -39,6 +39,8 @@ coverage/
 
 # Playwright
 playwright-report/
+playwright-report-comprehensive/
+playwright-report-real/
 test-results/
 blob-report/
 .playwright/

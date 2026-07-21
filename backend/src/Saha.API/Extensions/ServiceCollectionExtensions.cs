@@ -173,8 +173,15 @@ public static class ServiceCollectionExtensions
         // stringify their enums by hand, so this changes no existing response shape.
         services.AddControllers()
             .AddJsonOptions(options =>
+            {
                 options.JsonSerializerOptions.Converters.Add(
-                    new System.Text.Json.Serialization.JsonStringEnumConverter()));
+                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+                // Always serialize DateTime with an explicit UTC offset (trailing "Z"). DB-sourced
+                // timestamps otherwise lose their Kind and are written offset-less, which non-UTC
+                // clients misread as local time. See UtcDateTimeJsonConverter.
+                options.JsonSerializerOptions.Converters.Add(
+                    new Saha.API.Serialization.UtcDateTimeJsonConverter());
+            });
 
         // ── OpenTelemetry: traces → Grafana Tempo, metrics → Grafana Mimir ────
         AddOpenTelemetry(services, configuration);

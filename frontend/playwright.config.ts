@@ -8,7 +8,10 @@ const isLocalTarget = /localhost|127\.0\.0\.1/.test(baseURL)
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testIgnore: ['**/integration/**'],
+  // Suites that need a live backend run under their own configs (playwright.real.config.ts /
+  // playwright.comprehensive.config.ts), not here — this default config only starts Vite, so they
+  // would fail in the CI e2e job. Keep this config to the mock-backed suites + smoke tests.
+  testIgnore: ['**/integration/**', '**/real/**', '**/comprehensive/**'],
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,

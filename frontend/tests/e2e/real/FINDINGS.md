@@ -10,7 +10,13 @@ chat → group chat → edit/delete/react/rename/pin, cross-account persistence)
 
 ---
 
-## BUG 1 — UTC timestamps are serialized without a `Z`, so message/list times are wrong (HIGH)
+> **Update (2026-07-21): BUG 1 is FIXED.** The API now serializes every `DateTime` with a UTC
+> offset via `Saha.API.Serialization.UtcDateTimeJsonConverter`. The `test.fail()` annotation has been
+> removed. This `tests/e2e/real` suite is otherwise **stale** — its fixtures still use the pre-redesign
+> two-partner `register` payload and the old `Shared Password` login label. The maintained, correct
+> suite is `tests/e2e/comprehensive/` (see `testing/` and `reports/e2e-product-quality-report.html`).
+
+## BUG 1 — UTC timestamps are serialized without a `Z`, so message/list times are wrong (HIGH) — ✅ FIXED
 
 **User impact:** In any timezone east of UTC, a message you just sent shows a stale time (e.g. "5h"
 in IST) instead of "now"; conversation-list times are wrong too. West of UTC it silently clamps to

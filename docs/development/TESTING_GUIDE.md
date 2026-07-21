@@ -209,3 +209,58 @@ async function globalSetup() {
     })
 }
 ```
+
+---
+
+## Comprehensive real-backend E2E suite (`frontend/tests/e2e/comprehensive/`)
+
+This suite drives the **real** backend end to end and replaces the now-stale `tests/e2e/real`
+fixtures (which still used the pre-redesign two-partner `POST /auth/register` payload and the old
+`Shared Password` login label). It covers auth, navigation, connect, messaging, profile,
+dashboard/settings, and carries a regression test for every fixed bug (see `testing/BUGS.md`).
+
+### 1. Start the backend (isolated test DB, relaxed rate limiter)
+
+```bash
+cd backend/src/Saha.API
+ASPNETCORE_ENVIRONMENT=IntegrationTest \
+ASPNETCORE_URLS="https://localhost:7001;http://localhost:5001" \
+dotnet run --no-launch-profile
+```
+
+### 2. Run the suite (Vite is started automatically with registration enabled)
+
+```bash
+cd frontend
+npx playwright test --config playwright.comprehensive.config.ts          # all specs
+npx playwright test --config playwright.comprehensive.config.ts auth.spec.ts   # one feature
+npx playwright test --config playwright.comprehensive.config.ts regression.spec.ts  # fixed-bug guards
+```
+
+The config pins the browser timezone to `Asia/Kolkata (+05:30)` so the timestamp bug (BUG-001) is
+reproducible on any runner, including a UTC CI box.
+
+### 3. Creating & resetting test data
+
+- Every test **self-seeds** a fresh, randomized couple through the real
+  `register → invite → accept` flow (`tests/e2e/comprehensive/fixtures.ts`). Nothing is shared, so the
+  suite is safe to re-run without cleanup.
+- For a stable roster to click through by hand: `npm run seed:e2e` (or `npm run seed:e2e:connect`).
+- To reset: stop the backend and delete `backend/src/Saha.API/saha-integration-test.db*`; the schema
+  is recreated on next start.
+
+### 4. Viewing results, traces & the executive report
+
+```bash
+npx playwright show-report playwright-report-comprehensive   # Playwright HTML report
+npx playwright show-trace test-results/<failed-test>/trace.zip
+```
+
+- **Executive HTML report:** open `reports/e2e-product-quality-report.html` (self-contained; light/dark).
+- **Detailed artifacts:** `testing/` — `EXECUTION_SUMMARY.md`, `BUGS.md`, `COVERAGE_MATRIX.md`,
+  `COMPONENT_INVENTORY.md`, `TEST_PLAN.md`, `TEST_USERS.md`, `PRODUCT_MAP.md`.
+
+### 5. CI
+
+The config runs headless, single-worker, Chromium-only, and starts its own Vite server
+(`reuseExistingServer` locally). Point it at a deployed target with `PLAYWRIGHT_BASE_URL`.

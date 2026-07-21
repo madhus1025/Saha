@@ -92,7 +92,7 @@ export function LoginPage() {
         <Link to="/register" className="font-semibold text-forest-700 dark:text-sage-300 hover:underline">
           Create our home
         </Link>
-        <span className="text-sandstone-400"> \u00b7 </span>
+        <span className="text-sandstone-400"> · </span>
         <Link to="/invite/accept" className="font-semibold text-forest-700 dark:text-sage-300 hover:underline">
           I have an invitation
         </Link>
