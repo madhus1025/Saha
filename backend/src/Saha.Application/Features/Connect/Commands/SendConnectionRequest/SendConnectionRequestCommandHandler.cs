@@ -38,6 +38,15 @@ public sealed class SendConnectionRequestCommandHandler
         if (requesterCouple is null)
             throw new NotFoundException("Couple", request.RequesterCoupleId);
 
+        // A connection can only be formed between complete couples. GetConnections silently drops
+        // any connection involving an incomplete couple, so a request from an AwaitingPartner couple
+        // would be invisible to the target yet permanently occupy the between-couples slot — blocking
+        // a real request once the couple completes. Refuse it at the source.
+        if (!requesterCouple.IsComplete)
+            throw new ConflictException(
+                "COUPLE_INCOMPLETE",
+                "Your home must be complete before you can connect with other couples.");
+
         var targetCouple = await _coupleRepository.GetByTogetherIDAsync(
             request.TargetTogetherID.ToUpperInvariant(), cancellationToken);
 

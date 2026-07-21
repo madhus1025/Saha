@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Saha.Domain.Entities;
+using Saha.Domain.Enums;
 using Saha.Domain.ValueObjects;
 using Saha.Infrastructure.Persistence;
 using Saha.Infrastructure.Persistence.Interceptors;
@@ -189,22 +190,44 @@ public sealed class CoupleRepositoryTests : IDisposable
         result.Should().BeNull();
     }
 
-    private static Couple CreateTestCouple(string togetherId)
+    /// <summary>A Complete couple — registered, then joined by its partner.</summary>
+    private static Couple CreateTestCouple(
+        string togetherId,
+        string husbandUsername = "husbanduser",
+        string wifeUsername = "wifeuser")
+    {
+        var couple = Couple.Register(
+            togetherId: TogetherID.Create(togetherId),
+            username: Username.Create(husbandUsername),
+            name: "Test Husband",
+            dateOfBirth: new DateTime(1990, 1, 1),
+            email: EmailAddress.Create($"husband-{togetherId.ToLower()}@test.com"),
+            phoneNumber: PhoneNumber.Create("+11234567890"),
+            role: PartnerRole.Husband,
+            passwordHash: "hashedpassword");
+
+        couple.AcceptPartner(
+            username: Username.Create(wifeUsername),
+            name: "Test Wife",
+            dateOfBirth: new DateTime(1992, 6, 15),
+            email: EmailAddress.Create($"wife-{togetherId.ToLower()}@test.com"),
+            phoneNumber: PhoneNumber.Create("+19876543210"));
+
+        return couple;
+    }
+
+    /// <summary>A couple that has registered but whose partner has not yet accepted.</summary>
+    private static Couple CreateAwaitingPartnerCouple(string togetherId, string username)
     {
         return Couple.Register(
             togetherId: TogetherID.Create(togetherId),
-            passwordHash: "hashedpassword",
-            husbandName: "Test Husband",
-            husbandDob: new DateTime(1990, 1, 1),
-            husbandEmail: EmailAddress.Create($"husband-{togetherId.ToLower()}@test.com"),
-            husbandPhone: PhoneNumber.Create("+11234567890"),
-            husbandUsername: Username.Create("husbanduser"),
-            wifeName: "Test Wife",
-            wifeDob: new DateTime(1992, 6, 15),
-            wifeEmail: EmailAddress.Create($"wife-{togetherId.ToLower()}@test.com"),
-            wifePhone: PhoneNumber.Create("+19876543210"),
-            wifeUsername: Username.Create("wifeuser")
-        );
+            username: Username.Create(username),
+            name: "Solo Registrant",
+            dateOfBirth: new DateTime(1990, 1, 1),
+            email: EmailAddress.Create($"solo-{togetherId.ToLower()}@test.com"),
+            phoneNumber: PhoneNumber.Create("+11234567890"),
+            role: PartnerRole.Husband,
+            passwordHash: "hashedpassword");
     }
 
     public void Dispose()

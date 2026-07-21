@@ -28,6 +28,7 @@ public sealed class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Partner> Partners => Set<Partner>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<CoupleInvitation> CoupleInvitations => Set<CoupleInvitation>();
     public DbSet<CoupleConnection> CoupleConnections => Set<CoupleConnection>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Conversation> Conversations => Set<Conversation>();

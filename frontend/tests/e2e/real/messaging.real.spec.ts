@@ -132,11 +132,10 @@ test.describe('Messaging — partner chat (real backend)', () => {
   })
 
   test('REGRESSION: a just-sent message shows a fresh timestamp ("now")', async ({ browser }) => {
-    // KNOWN BUG (expected-fail): the message-list API returns createdAt WITHOUT a "Z"/UTC marker, so
-    // relativeTime()'s `new Date(iso)` parses it as local time. In a UTC+ timezone a message sent
-    // seconds ago renders as "<offset>h" instead of "now". Remove test.fail() once the backend
-    // serializes UTC timestamps with "Z" (or the frontend appends it). See BUG-REPORT.
-    test.fail()
+    // FIXED (BUG-001): the API now serializes every DateTime with a UTC offset ("Z"), so
+    // relativeTime()'s `new Date(iso)` no longer misreads it as local time. A message sent seconds
+    // ago renders as "now" even in a UTC+ timezone. See testing/BUGS.md and the actively-maintained
+    // guard in tests/e2e/comprehensive/regression.spec.ts.
     // Uses a UTC+ timezone to expose the bug deterministically.
     const api = await apiContext()
     const couple = await seedCouple(api, 'TZ')

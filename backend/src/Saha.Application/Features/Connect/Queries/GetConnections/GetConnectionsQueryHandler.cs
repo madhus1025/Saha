@@ -42,14 +42,21 @@ public sealed class GetConnectionsQueryHandler : IRequestHandler<GetConnectionsQ
             var otherCouple = await _coupleRepository.GetByIdAsync(otherCoupleId, cancellationToken);
             if (otherCouple is null) continue;
 
+            // Unreachable while connections can only be formed with complete couples, but a
+            // connection outlives nothing and a fault here would break the whole list.
+            if (!otherCouple.IsComplete) continue;
+
+            var husband = otherCouple.RequireHusband();
+            var wife = otherCouple.RequireWife();
+
             dtos.Add(new ConnectionDto(
                 ConnectionId: connection.Id,
                 CoupleId: otherCoupleId,
                 TogetherID: otherCouple.TogetherID,
-                HusbandName: otherCouple.Husband.Name,
-                WifeName: otherCouple.Wife.Name,
-                HusbandProfilePictureUrl: otherCouple.Husband.ProfilePictureUrl,
-                WifeProfilePictureUrl: otherCouple.Wife.ProfilePictureUrl,
+                HusbandName: husband.Name,
+                WifeName: wife.Name,
+                HusbandProfilePictureUrl: husband.ProfilePictureUrl,
+                WifeProfilePictureUrl: wife.ProfilePictureUrl,
                 Status: connection.Status.ToString(),
                 IsInitiator: connection.InitiatedByCoupleId == request.CoupleId,
                 CreatedAt: connection.CreatedAt,

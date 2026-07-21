@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
         // "RateLimiting" config section is absent.
         var authPermit = configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 5;
         var apiPermit = configuration.GetValue<int?>("RateLimiting:Api:PermitLimit") ?? 100;
+        var availabilityPermit = configuration.GetValue<int?>("RateLimiting:Availability:PermitLimit") ?? 30;
 
         services.AddRateLimiter(options =>
         {
@@ -78,6 +79,17 @@ public static class ServiceCollectionExtensions
                 limiter.Window = TimeSpan.FromMinutes(1);
                 limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
                 limiter.QueueLimit = 5;
+            });
+
+            // Registration availability checks are debounced but still bursty: typing a 9-character
+            // TogetherID fires several. The "auth" limiter (5/min) would lock a user out of their own
+            // registration. This is looser, but the response is a bare boolean.
+            options.AddFixedWindowLimiter("availability", limiter =>
+            {
+                limiter.PermitLimit = availabilityPermit;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                limiter.QueueLimit = 0;
             });
 
             // Separate limiter for the frontend telemetry ingest endpoint
@@ -157,7 +169,19 @@ public static class ServiceCollectionExtensions
             });
         });
 
-        services.AddControllers();
+        // Roles arrive from the registration wizard as "Husband"/"Wife". Outbound DTOs already
+        // stringify their enums by hand, so this changes no existing response shape.
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(
+                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+                // Always serialize DateTime with an explicit UTC offset (trailing "Z"). DB-sourced
+                // timestamps otherwise lose their Kind and are written offset-less, which non-UTC
+                // clients misread as local time. See UtcDateTimeJsonConverter.
+                options.JsonSerializerOptions.Converters.Add(
+                    new Saha.API.Serialization.UtcDateTimeJsonConverter());
+            });
 
         // ── OpenTelemetry: traces → Grafana Tempo, metrics → Grafana Mimir ────
         AddOpenTelemetry(services, configuration);
@@ -168,7 +192,7 @@ public static class ServiceCollectionExtensions
     private static void AddOpenTelemetry(IServiceCollection services, IConfiguration configuration)
     {
         var otlpEndpoint = configuration["Grafana:OtlpEndpoint"];
-        var otlpHeaders  = configuration["Grafana:OtlpHeaders"]; // "Authorization=Basic base64(instanceId:token)"
+        var otlpHeaders = configuration["Grafana:OtlpHeaders"]; // "Authorization=Basic base64(instanceId:token)"
 
         // Skip OTel setup when no endpoint is configured (local dev without Grafana Cloud)
         if (string.IsNullOrWhiteSpace(otlpEndpoint)) return;
@@ -178,9 +202,9 @@ public static class ServiceCollectionExtensions
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
                 .AddService(
-                    serviceName:        "saha-api",
-                    serviceVersion:     serviceVersion,
-                    serviceInstanceId:  Environment.MachineName))
+                    serviceName: "saha-api",
+                    serviceVersion: serviceVersion,
+                    serviceInstanceId: Environment.MachineName))
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation(opts =>
                 {
@@ -195,7 +219,7 @@ public static class ServiceCollectionExtensions
                 .AddOtlpExporter(opts =>
                 {
                     opts.Endpoint = new Uri(otlpEndpoint + "/v1/traces");
-                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    opts.Protocol = OtlpExportProtocol.HttpProtobuf;
                     if (!string.IsNullOrWhiteSpace(otlpHeaders))
                         opts.Headers = otlpHeaders;
                 }))
@@ -207,7 +231,7 @@ public static class ServiceCollectionExtensions
                 .AddOtlpExporter(opts =>
                 {
                     opts.Endpoint = new Uri(otlpEndpoint + "/v1/metrics");
-                    opts.Protocol  = OtlpExportProtocol.HttpProtobuf;
+                    opts.Protocol = OtlpExportProtocol.HttpProtobuf;
                     if (!string.IsNullOrWhiteSpace(otlpHeaders))
                         opts.Headers = otlpHeaders;
                 }));

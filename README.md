@@ -51,6 +51,8 @@ npm run dev
 | Testing Guide | [docs/development/TESTING_GUIDE.md](docs/development/TESTING_GUIDE.md) |
 | Deployment Guide | [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) |
 | Manual Test Cases | [docs/testing/MANUAL_TEST_CASES.md](docs/testing/MANUAL_TEST_CASES.md) |
+| E2E Quality Report (bugs, coverage, results) | [reports/e2e-product-quality-report.html](reports/e2e-product-quality-report.html) |
+| E2E Testing Artifacts (bugs, coverage matrix, plan) | [testing/](testing/) |
 
 ---
 

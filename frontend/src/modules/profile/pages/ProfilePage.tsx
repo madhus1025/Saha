@@ -126,7 +126,7 @@ export function ProfilePage() {
                 : 'text-sandstone-500 dark:text-sandstone-400 hover:text-sandstone-700',
             )}
           >
-            {tab === 'me' ? 'My Profile' : `${myProfile?.coupleInfo.partner.name ?? 'Partner'}'s Profile`}
+            {tab === 'me' ? 'My Profile' : `${myProfile?.coupleInfo.partner?.name ?? 'Partner'}'s Profile`}
           </button>
         ))}
       </div>
@@ -266,17 +266,17 @@ export function ProfilePage() {
               <CardHeader title="Together" />
               <div className="flex items-center gap-4 p-4 rounded-xl bg-sandstone-50 dark:bg-sandstone-900/50 border border-sandstone-100 dark:border-sandstone-800">
                 <CoupleAvatar
-                  src={currentProfile.coupleInfo.partner.profilePictureUrl}
-                  name={currentProfile.coupleInfo.partner.name}
-                  role={currentProfile.coupleInfo.partner.role}
+                  src={currentProfile.coupleInfo.partner?.profilePictureUrl}
+                  name={currentProfile.coupleInfo.partner?.name ?? ''}
+                  role={currentProfile.coupleInfo.partner?.role}
                   size="md"
                 />
                 <div>
                   <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100">
-                    {currentProfile.coupleInfo.partner.name}
+                    {currentProfile.coupleInfo.partner?.name}
                   </p>
                   <p className="text-xs text-sandstone-500 dark:text-sandstone-400">
-                    @{currentProfile.coupleInfo.partner.username} · {currentProfile.coupleInfo.partner.role}
+                    @{currentProfile.coupleInfo.partner?.username} · {currentProfile.coupleInfo.partner?.role}
                   </p>
                 </div>
               </div>

@@ -34,7 +34,7 @@ public sealed class TelemetryController : ApiControllerBase
     public TelemetryController(AuthMetrics authMetrics, ILogger<TelemetryController> logger)
     {
         _authMetrics = authMetrics;
-        _logger      = logger;
+        _logger = logger;
     }
 
     /// <summary>
@@ -61,11 +61,11 @@ public sealed class TelemetryController : ApiControllerBase
             // ── Structured log entry (→ Loki) ────────────────────────────
             using var scope = _logger.BeginScope(new Dictionary<string, object?>
             {
-                ["FrontendEvent"]  = evt.Name,
-                ["SessionId"]      = evt.SessionId,
-                ["AnonymousId"]    = evt.AnonymousId,
-                ["TraceId"]        = evt.TraceId,
-                ["FrontendProps"]  = safeProps,
+                ["FrontendEvent"] = evt.Name,
+                ["SessionId"] = evt.SessionId,
+                ["AnonymousId"] = evt.AnonymousId,
+                ["TraceId"] = evt.TraceId,
+                ["FrontendProps"] = safeProps,
             });
 
             _logger.LogInformation(

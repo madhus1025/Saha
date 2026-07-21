@@ -1,9 +1,13 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
 using Saha.Application.Features.Auth.Commands.Register;
 using Saha.Application.Telemetry;
+using Saha.Domain.Entities;
+using Saha.Domain.Enums;
 using Saha.Domain.Interfaces.Repositories;
 using Saha.Domain.Interfaces.Services;
 using Xunit;
@@ -12,109 +16,158 @@ namespace Saha.Application.Tests.Features.Auth;
 
 public sealed class RegisterCoupleCommandHandlerTests
 {
-    private readonly ICoupleRepository _coupleRepository;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IAuditLogger _auditLogger;
-    private readonly ICurrentUserContext _currentUser;
+    private readonly ICoupleRepository _coupleRepository = Substitute.For<ICoupleRepository>();
+    private readonly IPasswordHasher _passwordHasher = Substitute.For<IPasswordHasher>();
+    private readonly IAuthTokenIssuer _tokenIssuer = Substitute.For<IAuthTokenIssuer>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
+    private readonly ICurrentUserContext _currentUser = Substitute.For<ICurrentUserContext>();
     private readonly RegisterCoupleCommandHandler _handler;
 
     public RegisterCoupleCommandHandlerTests()
     {
-        _coupleRepository = Substitute.For<ICoupleRepository>();
-        _passwordHasher = Substitute.For<IPasswordHasher>();
-        _auditLogger = Substitute.For<IAuditLogger>();
-        _currentUser = Substitute.For<ICurrentUserContext>();
-
-        _passwordHasher.Hash(Arg.Any<string>()).Returns("hashed_password");
-        _currentUser.IpAddress.Returns("127.0.0.1");
-        _currentUser.UserAgent.Returns("test-agent");
+        _passwordHasher.Hash(Arg.Any<string>()).Returns("hashed");
+        _tokenIssuer
+            .IssueFor(Arg.Any<Couple>(), Arg.Any<Partner>(), Arg.Any<string?>())
+            .Returns(new IssuedTokens("access", "refresh",
+                DateTime.UtcNow.AddMinutes(15), DateTime.UtcNow.AddDays(30)));
 
         _handler = new RegisterCoupleCommandHandler(
-            _coupleRepository, _passwordHasher, _auditLogger, _currentUser, new AuthMetrics());
+            _coupleRepository, _passwordHasher, _tokenIssuer, _auditLogger, _currentUser, new AuthMetrics());
     }
 
-    private static RegisterCoupleCommand ValidCommand() => new(
-        TogetherID: "MADHU-PRIYA",
-        HusbandUsername: "madhu",
-        HusbandName: "Madhu Kumar",
-        HusbandDateOfBirth: new DateTime(1990, 5, 15),
-        HusbandEmail: "madhu@example.com",
-        HusbandPhoneNumber: "+911234567890",
-        WifeUsername: "priya",
-        WifeName: "Priya Kumar",
-        WifeDateOfBirth: new DateTime(1992, 8, 20),
-        WifeEmail: "priya@example.com",
-        WifePhoneNumber: "+919876543210",
-        Password: "StrongP@ss1",
-        ConfirmPassword: "StrongP@ss1");
+    private static RegisterCoupleCommand Command(
+        string togetherId = "MADHU-PRIYA",
+        string username = "madhu",
+        PartnerRole role = PartnerRole.Husband) => new(
+            TogetherID: togetherId,
+            Username: username,
+            Name: "Madhu Kumar",
+            DateOfBirth: new DateTime(1990, 5, 15),
+            Email: "madhu@example.com",
+            PhoneNumber: "+911234567890",
+            Role: role,
+            Password: "our quiet home by the sea",
+            ConfirmPassword: "our quiet home by the sea");
 
     [Fact]
-    public async Task Handle_WithValidCommand_RegistersCouple()
+    public async Task Handle_CreatesCoupleWithOneRegistrant_AwaitingPartner()
     {
-        _coupleRepository.ExistsByTogetherIDAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _coupleRepository.ExistsByUsernameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        Couple? saved = null;
+        await _coupleRepository.AddAsync(Arg.Do<Couple>(c => saved = c), Arg.Any<CancellationToken>());
 
-        var result = await _handler.Handle(ValidCommand(), CancellationToken.None);
+        var result = await _handler.Handle(Command(), CancellationToken.None);
 
-        result.Should().NotBeNull();
-        result.TogetherID.Should().Be("MADHU-PRIYA");
-        result.CoupleId.Should().NotBeEmpty();
+        saved.Should().NotBeNull();
+        saved!.Partners.Should().HaveCount(1);
+        saved.State.Should().Be(CoupleState.AwaitingPartner);
+        saved.Husband.Should().NotBeNull();
+        saved.Wife.Should().BeNull();
 
-        await _coupleRepository.Received(1).AddAsync(
-            Arg.Is<Domain.Entities.Couple>(c => c.TogetherID == "MADHU-PRIYA"),
-            Arg.Any<CancellationToken>());
+        result.CoupleState.Should().Be(nameof(CoupleState.AwaitingPartner));
     }
 
     [Fact]
-    public async Task Handle_WithExistingTogetherID_ThrowsConflictException()
+    public async Task Handle_RegisteringAsWife_LeavesHusbandUnset()
     {
-        _coupleRepository.ExistsByTogetherIDAsync("MADHU-PRIYA", Arg.Any<CancellationToken>())
-            .Returns(true);
+        Couple? saved = null;
+        await _coupleRepository.AddAsync(Arg.Do<Couple>(c => saved = c), Arg.Any<CancellationToken>());
 
-        var act = async () => await _handler.Handle(ValidCommand(), CancellationToken.None);
+        await _handler.Handle(Command(username: "priya", role: PartnerRole.Wife), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("*Together ID*taken*");
+        saved!.Wife.Should().NotBeNull();
+        saved.Husband.Should().BeNull();
     }
 
     [Fact]
-    public async Task Handle_WithExistingHusbandUsername_ThrowsConflictException()
+    public async Task Handle_IssuesTokens_SoTheRegistrantIsSignedIn()
     {
-        _coupleRepository.ExistsByTogetherIDAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _coupleRepository.ExistsByUsernameAsync("madhu", Arg.Any<CancellationToken>())
-            .Returns(true);
+        var result = await _handler.Handle(Command(), CancellationToken.None);
 
-        var act = async () => await _handler.Handle(ValidCommand(), CancellationToken.None);
+        result.AccessToken.Should().Be("access");
+        result.RefreshToken.Should().Be("refresh");
+        result.PartnerId.Should().NotBeEmpty();
 
-        await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("*'madhu'*taken*");
+        _tokenIssuer.Received(1).IssueFor(Arg.Any<Couple>(), Arg.Any<Partner>(), Arg.Any<string?>());
     }
 
     [Fact]
-    public async Task Handle_HashesPasswordBeforeSaving()
+    public async Task Handle_NormalizesTogetherIdAndUsername()
     {
-        _coupleRepository.ExistsByTogetherIDAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _coupleRepository.ExistsByUsernameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        Couple? saved = null;
+        await _coupleRepository.AddAsync(Arg.Do<Couple>(c => saved = c), Arg.Any<CancellationToken>());
 
-        await _handler.Handle(ValidCommand(), CancellationToken.None);
+        await _handler.Handle(Command(togetherId: " madhu-priya ", username: " MADHU "), CancellationToken.None);
 
-        _passwordHasher.Received(1).Hash("StrongP@ss1");
+        saved!.TogetherID.Should().Be("MADHU-PRIYA");
+        saved.Partners[0].Username.Should().Be("madhu");
     }
 
     [Fact]
-    public async Task Handle_LogsAuditOnSuccess()
+    public async Task Handle_HashesThePassword_AndNeverStoresPlainText()
     {
-        _coupleRepository.ExistsByTogetherIDAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
-        _coupleRepository.ExistsByUsernameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        Couple? saved = null;
+        await _coupleRepository.AddAsync(Arg.Do<Couple>(c => saved = c), Arg.Any<CancellationToken>());
 
-        await _handler.Handle(ValidCommand(), CancellationToken.None);
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        saved!.PasswordHash.Should().Be("hashed");
+        _passwordHasher.Received(1).Hash("our quiet home by the sea");
+    }
+
+    [Fact]
+    public async Task Handle_WithTakenTogetherId_ThrowsConflict()
+    {
+        _coupleRepository.ExistsByTogetherIDAsync("MADHU-PRIYA", Arg.Any<CancellationToken>()).Returns(true);
+
+        var act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>())
+            .Which.ConflictCode.Should().Be("TOGETHER_ID_TAKEN");
+    }
+
+    [Fact]
+    public async Task Handle_WithTakenUsername_ThrowsConflict()
+    {
+        _coupleRepository.ExistsByUsernameAsync("madhu", Arg.Any<CancellationToken>()).Returns(true);
+
+        var act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>())
+            .Which.ConflictCode.Should().Be("USERNAME_TAKEN");
+    }
+
+    [Fact]
+    public async Task Handle_WhenTogetherIdIsClaimedBetweenCheckAndInsert_ThrowsConflictNotServerError()
+    {
+        // The availability pre-check passes, then the unique index rejects the insert (TDD-FR-4).
+        _coupleRepository
+            .AddAsync(Arg.Any<Couple>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DbUpdateException(
+                "insert failed",
+                new Exception("UNIQUE constraint failed: Couples.TogetherID")));
+
+        var act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>())
+            .Which.ConflictCode.Should().Be("TOGETHER_ID_TAKEN");
+    }
+
+    [Fact]
+    public async Task Handle_DoesNotSwallowUnrelatedPersistenceFailures()
+    {
+        _coupleRepository
+            .AddAsync(Arg.Any<Couple>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DbUpdateException("disk full", new Exception("no space left on device")));
+
+        var act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DbUpdateException>();
+    }
+
+    [Fact]
+    public async Task Handle_AuditsTheRegistration()
+    {
+        await _handler.Handle(Command(), CancellationToken.None);
 
         await _auditLogger.Received(1).LogAsync(
             action: "COUPLE_REGISTERED",

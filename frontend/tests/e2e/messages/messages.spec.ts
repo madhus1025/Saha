@@ -91,15 +91,21 @@ test.describe('Messages — group creation', () => {
   }) => {
     await page.getByRole('button', { name: 'New group chat' }).click()
     const dialog = page.getByRole('dialog')
+    const search = dialog.getByLabel('Search couples')
+    // The picker reveals couples only once you search (empty query lists nothing).
+    await search.fill('RAVI')
     await expect(dialog.getByText('RAVI-KAVYA')).toBeVisible()
+    await search.fill('ALEX')
     await expect(dialog.getByText('ALEX-MIA')).toBeVisible()
-    // A couple we are NOT connected to never appears as an option.
+    // A couple we are NOT connected to never appears, even when searched for.
+    await search.fill('STRANGER')
     await expect(dialog.getByText('STRANGER-COUPLE')).toHaveCount(0)
   })
 
   test('creates a group with a connected couple and opens it', async ({ page }) => {
     await page.getByRole('button', { name: 'New group chat' }).click()
     const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Search couples').fill('RAVI')
     await dialog.getByText('RAVI-KAVYA').click()
     await dialog.getByLabel('Group name').fill('Beach Weekend')
     await dialog.getByRole('button', { name: 'Create' }).click()

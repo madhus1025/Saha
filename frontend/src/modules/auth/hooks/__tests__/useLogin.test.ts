@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useLogin } from '../useLogin'
 import { useAuthStore } from '@/shared/stores/auth.store'
 import { createWrapper } from '@/test-utils/query-wrapper'
-import type { LoginResponseDto } from '@/core/types/api.types'
+import type { AuthResponseDto } from '@/core/types/api.types'
 
 const mockNavigate = vi.fn()
 vi.mock('react-router', async (importOriginal) => {
@@ -24,7 +24,7 @@ vi.mock('@/shared/hooks/use-toast', () => ({
   toast: vi.fn(),
 }))
 
-const mockLoginResponse: LoginResponseDto = {
+const mockLoginResponse: AuthResponseDto = {
   accessToken: 'mock.access.token',
   expiresAt: '2026-06-29T01:00:00Z',
   coupleId: 'couple-123',
@@ -34,6 +34,7 @@ const mockLoginResponse: LoginResponseDto = {
   togetherID: 'TEST-ID01',
   role: 'Husband',
   profilePictureUrl: null,
+  coupleState: 'Complete' as const,
 }
 
 describe('useLogin', () => {
@@ -92,9 +93,9 @@ describe('useLogin', () => {
 
   it('should expose isPending state during mutation', async () => {
     const { authApi } = await import('@/core/api/auth.api')
-    let resolveFn!: (value: LoginResponseDto) => void
+    let resolveFn!: (value: AuthResponseDto) => void
     vi.mocked(authApi.login).mockReturnValueOnce(
-      new Promise<LoginResponseDto>((resolve) => {
+      new Promise<AuthResponseDto>((resolve) => {
         resolveFn = resolve
       }),
     )

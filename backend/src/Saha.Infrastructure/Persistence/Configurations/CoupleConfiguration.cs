@@ -30,6 +30,14 @@ public sealed class CoupleConfiguration : IEntityTypeConfiguration<Couple>
             .IsRequired()
             .HasDefaultValue(true);
 
+        // Deliberately no HasDefaultValue: AwaitingPartner is the CLR default (0), so EF would treat
+        // it as "unset", skip writing it, and every new couple would silently land on the store
+        // default. Existing rows are backfilled to Complete in the migration instead.
+        builder.Property(c => c.State)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         builder.Property(c => c.CreatedAt)
             .IsRequired();
 
@@ -49,6 +57,11 @@ public sealed class CoupleConfiguration : IEntityTypeConfiguration<Couple>
         builder.HasMany(c => c.PasswordResetTokens)
             .WithOne()
             .HasForeignKey(prt => prt.CoupleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(c => c.Invitations)
+            .WithOne()
+            .HasForeignKey(i => i.CoupleId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Navigation(c => c.Partners).AutoInclude();

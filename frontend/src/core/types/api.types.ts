@@ -9,6 +9,9 @@ export interface ApiResponse<T> {
 }
 
 export type PartnerRole = 'Husband' | 'Wife'
+
+/** A couple exists with one partner until the invited partner accepts. */
+export type CoupleState = 'AwaitingPartner' | 'Complete'
 export type ConnectionStatus = 'Pending' | 'Accepted' | 'Rejected'
 
 export interface PartnerSummary {
@@ -22,7 +25,9 @@ export interface PartnerSummary {
 export interface CoupleInfo {
   coupleId: string
   togetherID: string
-  partner: PartnerSummary
+  coupleState: CoupleState
+  /** Null while the couple is awaiting its partner — there is nobody to describe yet. */
+  partner: PartnerSummary | null
 }
 
 export interface ProfileDto {
@@ -37,7 +42,8 @@ export interface ProfileDto {
   coupleInfo: CoupleInfo
 }
 
-export interface LoginResponseDto {
+/** Returned by login, registration, and invitation acceptance alike. */
+export interface AuthResponseDto {
   accessToken: string
   expiresAt: string
   coupleId: string
@@ -47,11 +53,29 @@ export interface LoginResponseDto {
   togetherID: string
   role: PartnerRole
   profilePictureUrl: string | null
+  coupleState: CoupleState
 }
 
-export interface RegisterCoupleResult {
+export interface SessionDto {
   coupleId: string
+  partnerId: string
+  username: string
+  partnerName: string
   togetherID: string
+  role: PartnerRole
+  profilePictureUrl: string | null
+  coupleState: CoupleState
+}
+
+export interface AvailabilityDto {
+  usernameAvailable: boolean | null
+  togetherIDAvailable: boolean | null
+}
+
+export interface CreateInvitationResult {
+  invitationId: string
+  token: string
+  expiresAt: string
 }
 
 export interface ConnectionDto {

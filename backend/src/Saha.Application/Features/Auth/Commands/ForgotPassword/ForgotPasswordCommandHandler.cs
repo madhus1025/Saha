@@ -68,19 +68,14 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         couple.CreatePasswordResetToken(codeHash, expiry);
         await _coupleRepository.UpdateAsync(couple, cancellationToken);
 
-        var emailMessages = new[]
-        {
-            new EmailMessage(
-                To: couple.Husband.Email,
+        // Address only the partners that exist: a couple awaiting its partner has just one.
+        var emailMessages = couple.Partners
+            .Select(partner => new EmailMessage(
+                To: partner.Email,
                 Subject: "Saha — Password Reset Code",
-                HtmlBody: BuildEmailHtml(code, couple.Husband.Name, ttlMinutes),
-                PlainTextBody: BuildEmailText(code, couple.Husband.Name, ttlMinutes)),
-            new EmailMessage(
-                To: couple.Wife.Email,
-                Subject: "Saha — Password Reset Code",
-                HtmlBody: BuildEmailHtml(code, couple.Wife.Name, ttlMinutes),
-                PlainTextBody: BuildEmailText(code, couple.Wife.Name, ttlMinutes))
-        };
+                HtmlBody: BuildEmailHtml(code, partner.Name, ttlMinutes),
+                PlainTextBody: BuildEmailText(code, partner.Name, ttlMinutes)))
+            .ToArray();
 
         // ── Email send with accurate latency measurement ─────────────────────
         _authMetrics.RecordResetEmailTriggered(emailMessages.Length);

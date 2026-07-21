@@ -52,6 +52,12 @@ public sealed class PartnerConfiguration : IEntityTypeConfiguration<Partner>
         builder.Property(p => p.CoupleId)
             .IsRequired();
 
+        // A couple has at most one Husband and at most one Wife. Unreachable while Couple.Register
+        // was the only writer; AcceptPartner makes it reachable, so enforce it in the database too.
+        builder.HasIndex(p => new { p.CoupleId, p.Role })
+            .IsUnique()
+            .HasDatabaseName("IX_Partners_CoupleId_Role");
+
         builder.Property(p => p.CreatedAt)
             .IsRequired();
 

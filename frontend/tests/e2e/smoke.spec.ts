@@ -14,7 +14,7 @@ test.describe('Smoke', () => {
 
   test('@smoke the login page renders', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.getByText('Welcome back')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome home' })).toBeVisible()
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible()
   })
 

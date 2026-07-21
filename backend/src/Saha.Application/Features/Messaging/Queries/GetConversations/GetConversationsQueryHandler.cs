@@ -59,7 +59,7 @@ public sealed class GetConversationsQueryHandler
             .ToList();
     }
 
-    /// <summary>Idempotent self-heal so pre-existing couples and any failed post-registration creation get a partner conversation (D2).</summary>
+    /// <summary>Idempotent self-heal so pre-existing couples and any failed post-completion creation get a partner conversation (D2).</summary>
     private async Task EnsurePartnerConversationAsync(Guid coupleId, CancellationToken cancellationToken)
     {
         if (await _conversationRepository.PartnerConversationExistsAsync(coupleId, cancellationToken))
@@ -69,7 +69,13 @@ public sealed class GetConversationsQueryHandler
         if (couple is null)
             throw new NotFoundException("Couple", coupleId);
 
-        var conversation = Conversation.CreatePartner(coupleId, couple.Husband.Id, couple.Wife.Id);
+        // A couple awaiting its partner has nobody to talk to yet. The conversation is provisioned
+        // on CoupleCompletedEvent; this self-heal must not try to run ahead of that.
+        if (!couple.IsComplete)
+            return;
+
+        var conversation = Conversation.CreatePartner(
+            coupleId, couple.RequireHusband().Id, couple.RequireWife().Id);
         await _conversationRepository.AddAsync(conversation, cancellationToken);
     }
 }

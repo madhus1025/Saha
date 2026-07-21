@@ -18,7 +18,9 @@ public sealed record ProfileDto(
 public sealed record CoupleInfoDto(
     Guid CoupleId,
     string TogetherID,
-    PartnerSummaryDto Partner);
+    string CoupleState,
+    // Null while the couple is awaiting its partner — there is nobody to describe yet.
+    PartnerSummaryDto? Partner);
 
 public sealed record PartnerSummaryDto(
     Guid PartnerId,

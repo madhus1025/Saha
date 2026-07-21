@@ -394,25 +394,49 @@ public sealed class MessagingApiTests : IDisposable
         var husbandUsername = $"h{suffix}";
         var wifeUsername = $"w{suffix}";
 
-        var register = await _factory.CreateClient().PostAsJsonAsync("/api/v1/auth/register", new
+        // Registration creates the husband only; the wife arrives by accepting an invitation.
+        var setupClient = _factory.CreateClient();
+
+        var register = await setupClient.PostAsJsonAsync("/api/v1/auth/register", new
         {
             togetherID = togetherId,
-            husbandUsername,
-            husbandName = "Test Husband",
-            husbandDateOfBirth = "1990-01-01",
-            husbandEmail = $"{husbandUsername}@test.com",
-            husbandPhoneNumber = "+11234567890",
-            wifeUsername,
-            wifeName = "Test Wife",
-            wifeDateOfBirth = "1992-06-15",
-            wifeEmail = $"{wifeUsername}@test.com",
-            wifePhoneNumber = "+19876543210",
+            username = husbandUsername,
+            name = "Test Husband",
+            dateOfBirth = "1990-01-01",
+            email = $"{husbandUsername}@test.com",
+            phoneNumber = "+11234567890",
+            role = "Husband",
             password = "SecurePass@123!",
             confirmPassword = "SecurePass@123!"
         });
         register.EnsureSuccessStatusCode();
-        var coupleId = (await register.Content.ReadFromJsonAsync<JsonElement>(Json))
-            .GetProperty("coupleId").GetGuid();
+
+        var registerBody = await register.Content.ReadFromJsonAsync<JsonElement>(Json);
+        var coupleId = registerBody.GetProperty("coupleId").GetGuid();
+        var registrantToken = registerBody.GetProperty("accessToken").GetString();
+
+        using var inviteRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/invitations")
+        {
+            Content = JsonContent.Create(new { inviteeName = "Test Wife", inviteeEmail = $"{wifeUsername}@test.com" })
+        };
+        inviteRequest.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", registrantToken);
+
+        var invite = await setupClient.SendAsync(inviteRequest);
+        invite.EnsureSuccessStatusCode();
+        var inviteToken = (await invite.Content.ReadFromJsonAsync<JsonElement>(Json))
+            .GetProperty("token").GetString();
+
+        var accept = await setupClient.PostAsJsonAsync("/api/v1/auth/invitations/accept", new
+        {
+            token = inviteToken,
+            username = wifeUsername,
+            name = "Test Wife",
+            dateOfBirth = "1992-06-15",
+            email = $"{wifeUsername}@test.com",
+            phoneNumber = "+19876543210"
+        });
+        accept.EnsureSuccessStatusCode();
 
         var (client, partnerId) = await LoginWithPartnerAsync(husbandUsername);
         return new TestCouple(client, coupleId, partnerId, togetherId, husbandUsername, wifeUsername);

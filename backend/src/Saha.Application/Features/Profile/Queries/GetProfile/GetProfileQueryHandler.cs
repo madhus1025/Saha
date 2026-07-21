@@ -35,11 +35,14 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Pr
             CoupleInfo: new CoupleInfoDto(
                 CoupleId: couple.Id,
                 TogetherID: couple.TogetherID,
-                Partner: new PartnerSummaryDto(
-                    PartnerId: otherPartner.Id,
-                    Username: otherPartner.Username,
-                    Name: otherPartner.Name,
-                    ProfilePictureUrl: otherPartner.ProfilePictureUrl,
-                    Role: otherPartner.Role.ToString())));
+                CoupleState: couple.State.ToString(),
+                Partner: otherPartner is null
+                    ? null
+                    : new PartnerSummaryDto(
+                        PartnerId: otherPartner.Id,
+                        Username: otherPartner.Username,
+                        Name: otherPartner.Name,
+                        ProfilePictureUrl: otherPartner.ProfilePictureUrl,
+                        Role: otherPartner.Role.ToString())));
     }
 }

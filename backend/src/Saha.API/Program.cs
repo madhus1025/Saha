@@ -34,9 +34,9 @@ try
         }
 
         // ── Grafana Loki ─────────────────────────────────────────────────────
-        var lokiUri       = context.Configuration["Grafana:LokiUri"];
-        var lokiLogin     = context.Configuration["Grafana:LokiLogin"];
-        var lokiPassword  = context.Configuration["Grafana:LokiPassword"];
+        var lokiUri = context.Configuration["Grafana:LokiUri"];
+        var lokiLogin = context.Configuration["Grafana:LokiLogin"];
+        var lokiPassword = context.Configuration["Grafana:LokiPassword"];
 
         if (!string.IsNullOrWhiteSpace(lokiUri) && !string.IsNullOrWhiteSpace(lokiLogin))
         {
@@ -46,7 +46,7 @@ try
                 config.WriteTo.GrafanaLoki(lokiUri,
                     credentials: new Serilog.Sinks.Grafana.Loki.LokiCredentials
                     {
-                        Login    = lokiLogin,
+                        Login = lokiLogin,
                         Password = lokiPassword ?? string.Empty,
                     },
                     labels:

@@ -146,17 +146,17 @@ export function DashboardPage() {
 
             <div className="flex flex-col items-center gap-2">
               <CoupleAvatar
-                src={profile?.coupleInfo.partner.profilePictureUrl}
-                name={profile?.coupleInfo.partner.name ?? partnerName ?? ''}
-                role={profile?.coupleInfo.partner.role}
+                src={profile?.coupleInfo.partner?.profilePictureUrl}
+                name={profile?.coupleInfo.partner?.name ?? partnerName ?? ''}
+                role={profile?.coupleInfo.partner?.role}
                 size="xl"
               />
               <div className="text-center">
                 <p className="text-sm font-semibold text-sandstone-900 dark:text-cream-200">
-                  {profile?.coupleInfo.partner.name ?? partnerName}
+                  {profile?.coupleInfo.partner?.name ?? partnerName}
                 </p>
                 <p className="text-xs text-forest-600 dark:text-sage-300">
-                  {profile?.coupleInfo.partner.role}
+                  {profile?.coupleInfo.partner?.role}
                 </p>
               </div>
             </div>

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Saha.Domain.Entities;
+using Saha.Domain.Enums;
 using Saha.Domain.Interfaces.Repositories;
 
 namespace Saha.Infrastructure.Persistence.Repositories;
@@ -64,15 +65,34 @@ public sealed class CoupleRepository : ICoupleRepository
         await _context.Partners
             .AnyAsync(p => p.Username == username.ToLowerInvariant(), cancellationToken);
 
+    // A couple awaiting its partner is not part of the social graph: it must never be discoverable.
+    // The filter lives here, not in the handler, so no future caller can forget it.
     public async Task<IReadOnlyList<Couple>> SearchByTogetherIDAsync(
         string partialTogetherID,
         int limit,
         CancellationToken cancellationToken = default) =>
         await _context.Couples
             .Include(c => c.Partners)
-            .Where(c => c.TogetherID.Contains(partialTogetherID) && c.IsActive)
+            .Where(c => c.TogetherID.Contains(partialTogetherID)
+                        && c.IsActive
+                        && c.State == CoupleState.Complete)
             .Take(limit)
             .ToListAsync(cancellationToken);
+
+    public async Task<Couple?> GetByInvitationTokenHashAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await _context.CoupleInvitations
+            .FirstOrDefaultAsync(i => i.TokenHash == tokenHash, cancellationToken);
+
+        if (invitation is null) return null;
+
+        return await _context.Couples
+            .Include(c => c.Partners)
+            .Include(c => c.Invitations)
+            .FirstOrDefaultAsync(c => c.Id == invitation.CoupleId, cancellationToken);
+    }
 
     public async Task AddAsync(Couple couple, CancellationToken cancellationToken = default)
     {

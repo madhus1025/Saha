@@ -39,9 +39,12 @@ public sealed class CreateGroupConversationCommandHandler
         if (requester is null)
             throw new NotFoundException("Couple", requesterCoupleId);
 
+        if (!requester.IsComplete)
+            throw new ConflictException("COUPLE_INCOMPLETE", "Your home is still waiting for a partner.");
+
         var couples = new List<(Guid, Guid, Guid)>
         {
-            (requester.Id, requester.Husband.Id, requester.Wife.Id)
+            (requester.Id, requester.RequireHusband().Id, requester.RequireWife().Id)
         };
 
         foreach (var targetId in request.TargetCoupleIds.Distinct())
@@ -59,7 +62,10 @@ public sealed class CreateGroupConversationCommandHandler
             if (target is null)
                 throw new NotFoundException("Couple", targetId);
 
-            couples.Add((target.Id, target.Husband.Id, target.Wife.Id));
+            if (!target.IsComplete)
+                throw new ConflictException("COUPLE_INCOMPLETE", "That home is still waiting for a partner.");
+
+            couples.Add((target.Id, target.RequireHusband().Id, target.RequireWife().Id));
         }
 
         var conversation = Conversation.CreateGroup(requesterCoupleId, couples, request.Name);

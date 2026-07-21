@@ -9,6 +9,7 @@ public interface IApplicationDbContext
     DbSet<Partner> Partners { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
+    DbSet<CoupleInvitation> CoupleInvitations { get; }
     DbSet<CoupleConnection> CoupleConnections { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Conversation> Conversations { get; }

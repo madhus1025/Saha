@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# The default GITHUB_TOKEN is contents:read-only here, which makes the semantic-title action and the
+# bundle-size comment fail with "Resource not accessible by integration". Grant the minimum they need.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate-pr:
     name: Validate PR
@@ -115,5 +121,8 @@ jobs:
         uses: preactjs/compressed-size-action@v2
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          pattern: './frontend/dist/**/*.{js,css}'
+          # package.json lives in frontend/, not the repo root — run install/build there and glob
+          # the bundle relative to it.
+          cwd: ./frontend
+          pattern: './dist/**/*.{js,css}'
           strip-hash: '\.[a-f0-9]{8}\.'

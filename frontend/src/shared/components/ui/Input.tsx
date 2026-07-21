@@ -8,10 +8,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   hint?: string
   leftIcon?: LucideIcon
   rightElement?: React.ReactNode
+  /**
+   * `gentle` drops red as the error signal — the auth screens state consequences plainly and
+   * never scold. Errors stay announced to assistive tech either way.
+   */
+  tone?: 'default' | 'gentle'
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, leftIcon: LeftIcon, rightElement, id, ...props }, ref) => {
+  (
+    { className, label, error, hint, leftIcon: LeftIcon, rightElement, id, tone = 'default', ...props },
+    ref,
+  ) => {
+    const gentle = tone === 'gentle'
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
     return (
@@ -42,7 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               'input-warm',
               LeftIcon && 'pl-10',
               rightElement && 'pr-12',
-              error && 'border-red-400 focus:ring-red-400',
+              error && (gentle ? 'border-sandstone-500' : 'border-red-400 focus:ring-red-400'),
               className,
             )}
             aria-invalid={!!error}
@@ -60,7 +69,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <p
             id={`${inputId}-error`}
-            className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1"
+            className={cn(
+              'text-xs flex items-center gap-1',
+              gentle
+                ? 'text-sandstone-700 dark:text-sandstone-300'
+                : 'text-red-600 dark:text-red-400',
+            )}
             role="alert"
           >
             {error}
