@@ -1,0 +1,436 @@
+[
+  {
+    "id": "SAHA-D01",
+    "title": "Password reset enforces a different — and in places weaker — password policy than registration",
+    "severity": "High",
+    "module": "Authentication — Password Recovery",
+    "type": "Business rule / security policy",
+    "component": "backend/src/Saha.Application/Features/Auth/Commands/ResetPassword/ResetPasswordCommandValidator.cs",
+    "cases": [
+      "PWR-008",
+      "REG-016",
+      "REG-017"
+    ],
+    "tests": [
+      "a password accepted at registration is also accepted at reset",
+      "reset enforces the agreed 8-character minimum",
+      "reset requires the same character classes as registration",
+      "reset rejects passwords beyond the 72-byte BCrypt ceiling",
+      "a 7-character password is rejected and 8 is accepted",
+      "every character class is required at registration",
+      "a password over 72 UTF-8 bytes is rejected even when under 72 characters"
+    ],
+    "observed": "<code>ResetPasswordCommandValidator</code> requires 8–128 characters <em>plus</em> an uppercase letter, a lowercase letter, a digit and a special character. <code>RegisterCoupleCommandValidator</code> / <code>register.schema.ts</code> require at least 12 characters and at most 72 UTF-8 bytes, with <strong>no</strong> character-class rules. The two validators disagree in three separate directions.",
+    "expected": "One password policy, enforced identically wherever a password is set. PWR-008 specifies 8–128 plus character classes; REG-016/REG-017 specify 12 characters minimum and a 72-byte ceiling. Whichever the product chooses, both endpoints must apply it.",
+    "impact": "<strong>(a) Users are locked out of their own password style.</strong> The passphrase the product markets and seeds — <code>our quiet home by the sea</code> — is legal at registration but rejected at reset with “must contain at least one uppercase letter”. A couple who registered with a passphrase can never reset to a similar one.<br><strong>(b) Reset silently weakens the account.</strong> An 8-character password clears the reset validator, four characters below the floor registration guarantees.<br><strong>(c) Silent BCrypt truncation.</strong> Registration caps at 72 UTF-8 bytes precisely because BCrypt ignores everything past byte 72 — the schema carries a comment saying so. Reset allows 128 characters, so bytes 73–128 of a long reset password are silently discarded. The user believes they set a 128-character password; the system stored 72 bytes of it.",
+    "repro": [
+      "<code>POST /api/v1/auth/reset-password</code> with <code>newPassword</code> = <code>our quiet home by the sea</code> → <code>400</code>, “Password must contain at least one uppercase letter / digit”. The same value is accepted by <code>POST /api/v1/auth/register</code>.",
+      "Repeat with <code>newPassword</code> = <code>Abcd123!</code> (8 characters) → the validator passes and the request reaches the code check (<code>401</code> for a wrong code), proving the length rule never fired.",
+      "Repeat with a 100-character password → the validator passes again; no 72-byte ceiling is applied."
+    ],
+    "evidenceNote": "All three legs are API-level and deterministic — no UI timing is involved. A <code>401 Invalid or expired verification code</code> response is proof the payload <em>cleared</em> validation, because validation runs before the code lookup.",
+    "note": "Decide the single policy first, then apply it in both validators and in <code>register.schema.ts</code>. If passphrases are the intent, drop the character-class rules from reset and raise its minimum to 12 with a 72-byte cap. Whatever is chosen, the 72-byte BCrypt ceiling must exist on every path that hashes a password.",
+    "fix": "Extracted the policy into a single <code>PasswordRules.SharedPassword()</code> rule now used by <em>both</em> <code>RegisterCoupleCommandValidator</code> and <code>ResetPasswordCommandValidator</code>, and mirrored in <code>register.schema.ts</code>. Per the product decision the unified rule is the character-class one: ≥ 8 characters with uppercase, lowercase, digit and special. The 72-byte BCrypt ceiling was additionally applied to <em>reset</em>, which previously allowed 128 characters and silently truncated past byte 72."
+  },
+  {
+    "id": "SAHA-D02",
+    "title": "Reset verification code accepts non-ASCII Unicode digits",
+    "severity": "Medium",
+    "module": "Authentication — Password Recovery",
+    "type": "Input validation",
+    "component": "backend/src/Saha.Application/Features/Auth/Commands/ResetPassword/ResetPasswordCommandValidator.cs",
+    "cases": [
+      "PWR-007"
+    ],
+    "tests": [
+      "the code must be exactly six ASCII digits"
+    ],
+    "observed": "The code rule is <code>Matches(@\"^\\d{6}$\")</code>. In .NET, <code>\\d</code> matches every Unicode decimal digit, not just <code>0-9</code>. The Arabic-Indic string <code>١٢٣٤٥٦</code> passes validation and is forwarded to the token lookup, which answers <code>401 Invalid or expired verification code</code>.",
+    "expected": "PWR-007 requires the field to accept exactly six <em>ASCII</em> digits and to reject Unicode digits at validation with a <code>400</code>.",
+    "impact": "Codes that cannot possibly match a generated token still consume a token-lookup round trip and are counted as a code attempt rather than a malformed request. That blurs the boundary between “you typed it wrong” and “this input is not a code at all”, and — where reset attempts are rate-limited or lockout-counted — lets an attacker burn a victim's attempt budget with input the validator was supposed to stop.",
+    "repro": [
+      "<code>POST /api/v1/auth/reset-password</code> with <code>{ \"togetherIDOrUsername\": \"madhu\", \"code\": \"١٢٣٤٥٦\", \"newPassword\": \"ValidPass1!\", \"confirmPassword\": \"ValidPass1!\" }</code>.",
+      "Observed: <code>401 UNAUTHORIZED</code> — validation passed. Expected: <code>400 VALIDATION_ERROR</code>."
+    ],
+    "note": "<code>RegexOptions.ECMAScript</code>, or an explicit <code>^[0-9]{6}$</code> character class, restricts the match to ASCII. The same <code>\\d</code> caveat applies anywhere else a numeric format is validated.",
+    "fix": "Changed the code pattern from <code>^\\d{6}$</code> to <code>^[0-9]{6}$</code>. In .NET <code>\\d</code> matches every Unicode decimal digit, so Arabic-Indic digits cleared validation and consumed a token lookup."
+  },
+  {
+    "id": "SAHA-D03",
+    "title": "Login rejects a username that carries surrounding whitespace, though the stored identity is trimmed",
+    "severity": "Medium",
+    "module": "Authentication — Login",
+    "type": "Normalisation inconsistency",
+    "component": "backend/src/Saha.Application/Features/Auth/Commands/Login/ — login handler lookup",
+    "cases": [
+      "AUTH-004"
+    ],
+    "tests": [
+      "username lookup tolerates surrounding whitespace"
+    ],
+    "observed": "<code>Username.Create</code> normalises with <code>value.Trim().ToLowerInvariant()</code>, so every stored username is trimmed and lowercase. Login applies only the case half of that normalisation: <code>MADHU</code> authenticates (<code>200</code>), but <code>\"  madhu  \"</code> is refused with <code>401 Invalid username or password</code>.",
+    "expected": "AUTH-004 requires login to apply the same normalisation as the domain value object, so leading/trailing whitespace and case variation resolve to the same identity.",
+    "impact": "Password managers, mobile keyboards and copy-paste routinely append a trailing space. The user sees the generic “Invalid username or password” message, which points them at their password — the one thing that is actually correct. There is nothing on screen that could lead them to the real cause, so this presents as an unexplainable login failure and drives password resets that will not help.",
+    "repro": [
+      "<code>POST /api/v1/auth/login</code> with <code>{ \"username\": \"madhu\", \"password\": \"&lt;shared password&gt;\" }</code> → <code>200</code>.",
+      "<code>POST /api/v1/auth/login</code> with <code>{ \"username\": \"  madhu  \" }</code> and the same password → <code>401</code>.",
+      "<code>POST /api/v1/auth/login</code> with <code>{ \"username\": \"MADHU\" }</code> → <code>200</code>, confirming case is already handled and only trimming is missing."
+    ],
+    "note": "Route the login lookup through <code>Username.Create</code> (or trim before the lookup) so one normalisation rule governs both write and read paths.",
+    "fix": "The login handler now normalises once — <code>request.Username.Trim().ToLowerInvariant()</code> — and reuses that value for both the couple lookup and the partner lookup. Fixing only the first lookup initially produced a 500, because the couple resolved while the partner did not; the regression test caught it before this shipped."
+  },
+  {
+    "id": "SAHA-D04",
+    "title": "Profile update lets a partner take an email address already registered to another account",
+    "severity": "High",
+    "module": "Profile",
+    "type": "Data integrity / uniqueness",
+    "component": "backend/src/Saha.Application/Features/Profile/Commands/UpdateProfile/",
+    "cases": [
+      "PRF-008"
+    ],
+    "tests": [
+      "a partner cannot take an email that already belongs to another account"
+    ],
+    "observed": "<code>PUT /api/v1/profile/me</code> with an <code>email</code> that already belongs to a partner in a different couple returns <code>204 No Content</code> and persists the change. Registration rejects a duplicate email, so uniqueness is enforced on create but not on update.",
+    "expected": "PRF-008 requires email conflicts with another partner or account to be rejected atomically, consistent with the uniqueness registration already enforces.",
+    "impact": "Email is the recovery channel: <code>POST /auth/forgot-password</code> sends the reset code to both partners' addresses. Once two accounts share an address, a reset code for one couple is delivered to a person in a different couple — a cross-account account-takeover path that needs no credentials, only a profile edit. It also makes email unusable as a support identifier and can break any downstream unique index or notification routing.",
+    "repro": [
+      "Register couple A and couple B (any two complete couples with distinct emails).",
+      "Authenticate as a partner in couple A.",
+      "<code>PUT /api/v1/profile/me</code> with a valid body whose <code>email</code> is couple B's registrant email.",
+      "Observed: <code>204</code> and the value is persisted — re-reading <code>GET /profile/me</code> shows the duplicated address. Expected: <code>409</code> (or <code>400</code>) with no write."
+    ],
+    "note": "Needs both a uniqueness check in the update handler and a unique index on the email column, so a race between two concurrent updates cannot slip through the check.",
+    "fix": "Added <code>ICoupleRepository.ExistsByEmailAsync(email, excludingPartnerId)</code> and a conflict check in <code>UpdateProfileCommandHandler</code>, returning <code>409 EMAIL_IN_USE</code>. Self-exclusion keeps re-saving an unchanged profile valid."
+  },
+  {
+    "id": "SAHA-D05",
+    "title": "An invalid connection status filter is silently ignored instead of rejected",
+    "severity": "Medium",
+    "module": "Connect",
+    "type": "API contract",
+    "component": "backend/src/Saha.API/Controllers/ConnectController.cs — GetConnections",
+    "cases": [
+      "CON-026"
+    ],
+    "tests": [
+      "the status filter is scoped and validated"
+    ],
+    "observed": "<code>GET /api/v1/connect/connections?status=NotAStatus</code> returns <code>200</code> with a populated list — the unparseable filter is dropped and the request is served as though no filter had been supplied.",
+    "expected": "CON-026 requires the status filter contract to be validated: an invalid value must be refused with a <code>400</code> rather than silently widening the result set.",
+    "impact": "A caller that misspells a status — or sends a value from a newer client build — receives data it did not ask for and has no way to detect the mistake. A UI that requests <code>Pending</code> but sends a typo renders <em>accepted</em> connections in the pending tab, and the bug is invisible in testing because the response is a well-formed <code>200</code>. Silent filter-dropping is also the failure mode most likely to leak a wider record set than intended if a status filter is ever used as an authorization narrowing step.",
+    "repro": [
+      "Authenticate as any complete couple.",
+      "<code>GET /api/v1/connect/connections?status=NotAStatus</code>.",
+      "Observed: <code>200</code> with accepted connections in the body. Expected: <code>400</code>."
+    ],
+    "note": "Bind the parameter to the enum and let model binding reject unparseable values, or validate explicitly and return the standard <code>{code, message, errors}</code> envelope.",
+    "fix": "<code>GetConnections</code> now rejects an unparseable <code>status</code> with a <code>400</code> listing the valid values, instead of dropping the filter and silently returning every connection."
+  },
+  {
+    "id": "SAHA-D06",
+    "title": "A malformed pagination cursor silently returns the first page again",
+    "severity": "Medium",
+    "module": "Messaging",
+    "type": "API contract / pagination",
+    "component": "backend/src/Saha.Application/Features/Messaging/Queries/GetMessages/GetMessagesQueryHandler.cs",
+    "cases": [
+      "THR-004"
+    ],
+    "tests": [
+      "a malformed cursor is rejected rather than silently restarting pagination"
+    ],
+    "observed": "<code>MessageCursor.TryDecode</code> returns <code>false</code> for an undecodable cursor, and the handler simply leaves <code>beforeTicks</code>/<code>beforeId</code> null. A request for the page <em>before</em> an unparseable cursor is therefore answered with the newest page — the same items the client already holds — under a <code>200</code>.",
+    "expected": "THR-004 requires valid, malformed, deleted and equal-time cursors to return stable newest-first pages with no skipped or duplicated messages. A cursor the server cannot interpret is not a page boundary and must not be treated as “no boundary”.",
+    "impact": "An infinite-scroll client that receives a corrupted or truncated cursor — from a URL round-trip, a stale cache, or a proxy that mangles the base64 — will append messages it has already rendered and then request the same page forever. The user sees duplicated history and a scroll that never reaches the end, and because every response is <code>200</code> there is no error to surface or log.",
+    "repro": [
+      "Seed a conversation with at least three messages.",
+      "<code>GET /conversations/{id}/messages?take=2</code> and record the returned item ids.",
+      "<code>GET /conversations/{id}/messages?take=2&amp;before=NOT_A_CURSOR</code>.",
+      "Observed: <code>200</code> with the identical first-page ids. Expected: <code>400</code> for an uninterpretable cursor."
+    ],
+    "note": "Distinguish “no cursor supplied” from “cursor supplied but undecodable”: the first is page one, the second is a client error.",
+    "fix": "<code>GetMessagesQueryHandler</code> now distinguishes “no cursor supplied” from “cursor supplied but undecodable”. The first is page one; the second is a <code>400</code>, so an infinite-scroll client can no longer be handed page one forever."
+  },
+  {
+    "id": "SAHA-D07",
+    "title": "Validation errors reflect raw user input back in the message string",
+    "severity": "Low",
+    "module": "Cross-cutting — Security",
+    "type": "Error hygiene",
+    "component": "backend/src/Saha.Domain/ValueObjects/ReactionEmoji.cs",
+    "cases": [
+      "REA-004",
+      "SEC-004",
+      "SEC-006"
+    ],
+    "tests": [
+      "a rejected reaction does not echo the raw payload back"
+    ],
+    "observed": "<code>ReactionEmoji.Create</code> builds its message as <code>$\"'{value}' is not a supported reaction.\"</code>. Posting <code>{\"emoji\": \"&lt;svg/onload=alert(1)&gt;\"}</code> returns that payload embedded verbatim in <code>message</code> and in <code>errors.ReactionEmoji</code>.",
+    "expected": "SEC-004 requires error responses to be sanitised and to contain no attacker-controlled content beyond what is necessary to identify the field at fault.",
+    "impact": "The API itself is safe — the response is JSON-encoded and the current React client escapes on render — so this is not exploitable as shipped. It is a latent sink: the moment any consumer renders an API error message as HTML (a toast with <code>dangerouslySetInnerHTML</code>, an email, an admin log viewer, a native webview), the attacker's payload arrives pre-delivered inside a trusted error string. Naming the rejected value also adds nothing the caller does not already know, since the caller sent it.",
+    "repro": [
+      "Authenticate and send any message to obtain a message id.",
+      "<code>PUT /conversations/{cid}/messages/{mid}/reaction</code> with <code>{ \"emoji\": \"&lt;svg/onload=alert(1)&gt;\" }</code>.",
+      "Observed: the response body contains <code>'&lt;svg/onload=alert(1)&gt;' is not a supported reaction.</code>"
+    ],
+    "note": "State the constraint rather than the input — e.g. “Reaction must be one of: heart, laugh, wow, sad, thumbsup, fire.” Worth a sweep for the same <code>$\"'{value}'…\"</code> pattern in the other value objects.",
+    "fix": "<code>ReactionEmoji.Create</code> now states the constraint — “Reaction must be one of: fire, heart, laugh, sad, thumbsup, wow.” — instead of interpolating the caller's raw input into the error string."
+  },
+  {
+    "id": "SAHA-D08",
+    "title": "Model-binding validation returns framework ProblemDetails instead of the API's error envelope",
+    "severity": "Low",
+    "module": "Cross-cutting — Security",
+    "type": "API contract",
+    "component": "backend/src/Saha.API/Controllers/TelemetryController.cs (ASP.NET automatic model-state validation)",
+    "cases": [
+      "SEC-004"
+    ],
+    "tests": [
+      "a validation failure uses the same envelope as the rest of the API"
+    ],
+    "observed": "Application-level failures return <code>{ \"code\", \"message\", \"errors\" }</code>. A request that fails ASP.NET model binding instead returns RFC-9110 ProblemDetails: <code>{ \"type\", \"title\", \"status\", \"errors\", \"traceId\" }</code> — with no <code>code</code> field.",
+    "expected": "SEC-004 requires a single stable, sanitised error contract across every status code.",
+    "impact": "The client's <code>extractApiError</code> reads <code>code</code>/<code>message</code>. For a ProblemDetails body both are absent, so the user gets a generic fallback instead of the actual validation reason, and error-rate dashboards keyed on <code>code</code> under-count these failures. The ProblemDetails body also emits a <code>traceId</code> that the application envelope deliberately withholds from clients.",
+    "repro": [
+      "<code>POST /api/v1/telemetry/events</code> with <code>{ \"events\": [ { \"name\": \"probe\" } ] }</code> (omitting the required <code>sessionId</code>).",
+      "Observed: <code>400</code> with a ProblemDetails body containing <code>type</code>/<code>title</code>/<code>traceId</code> and no <code>code</code>."
+    ],
+    "note": "Configure <code>ApiBehaviorOptions.InvalidModelStateResponseFactory</code> to emit the same envelope the exception middleware produces. This affects every endpoint with model-bound required fields, not only telemetry.",
+    "fix": "Configured <code>ApiBehaviorOptions.InvalidModelStateResponseFactory</code> to emit the same <code>{code, message, errors}</code> envelope the exception middleware produces. This applies to every model-bound endpoint, not only telemetry, and drops the ProblemDetails <code>traceId</code> that was leaking to clients."
+  },
+  {
+    "id": "SAHA-D09",
+    "title": "Every route shares the same document title",
+    "severity": "Medium",
+    "module": "Cross-cutting — Accessibility",
+    "type": "Accessibility (WCAG 2.4.2 Page Titled)",
+    "component": "frontend/index.html + frontend/src/app/router/router.tsx",
+    "cases": [
+      "ACC-008"
+    ],
+    "tests": [
+      "the document title changes between routes"
+    ],
+    "observed": "<code>&lt;title&gt;Saha&lt;/title&gt;</code> is set once in <code>index.html</code> and never updated. <code>/dashboard</code>, <code>/settings</code>, <code>/profile</code>, <code>/messages</code> and the 404 page all report <code>document.title === \"Saha\"</code>.",
+    "expected": "ACC-008 requires a unique document title per route, so route changes are announced and history is navigable.",
+    "impact": "Screen readers announce the document title on navigation; with a single-page app and one static title, a blind user gets no confirmation that navigation happened at all. Browser history, bookmarks, open-tab lists and window switchers all show identical “Saha” entries, so a user with several tabs open cannot tell them apart. This is a WCAG 2.4.2 Level A failure — the most severe conformance tier.",
+    "repro": [
+      "Sign in and open <code>/dashboard</code>; read <code>document.title</code> → <code>\"Saha\"</code>.",
+      "Navigate to <code>/settings</code>; read <code>document.title</code> → still <code>\"Saha\"</code>."
+    ],
+    "note": "Set the title per route (a small effect in the layout keyed on the matched route, or a <code>title</code> field in the route objects). Pair it with a politely-announced route-change region to satisfy the announcement half of ACC-008.",
+    "fix": "Added a pathless root route rendering <code>&lt;DocumentTitle /&gt;</code>, with a <code>handle.title</code> on every route. Titles now read “Settings · Saha”, “Home · Saha”, and so on. A polite live region additionally announces “Navigated to &lt;page&gt;” — prefixed so the announcement never duplicates the page's own heading text."
+  },
+  {
+    "id": "SAHA-D10",
+    "title": "The appearance selector signals the active theme with colour only",
+    "severity": "Medium",
+    "module": "Settings",
+    "type": "Accessibility (WCAG 1.4.1, 4.1.2)",
+    "component": "frontend/src/modules/settings/pages/SettingsPage.tsx",
+    "cases": [
+      "SET-001",
+      "ACC-003",
+      "ACC-006"
+    ],
+    "tests": [
+      "the selected appearance is exposed semantically, not only by colour"
+    ],
+    "observed": "Light / Dark / System are plain <code>&lt;button&gt;</code> elements. The active one is styled with a gold border and background; it carries no <code>role=\"radio\"</code>, no <code>aria-checked</code>, no <code>aria-pressed</code> and no <code>aria-current</code>.",
+    "expected": "SET-001 requires the current choice to be exposed <em>visually and semantically</em>; ACC-006 requires a non-colour indicator.",
+    "impact": "A screen-reader user hears three identical, unlabelled-state buttons and cannot tell which theme is active — nor confirm that pressing one changed anything. Users with colour-vision deficiency, and anyone in Windows forced-colors mode where the custom background is discarded, lose the only cue there is. Notably the app's own <code>RoleToggle</code> already implements this correctly with <code>role=\"radiogroup\"</code> + <code>role=\"radio\"</code> + <code>aria-checked</code>, so the correct pattern exists in the codebase and simply was not applied here.",
+    "repro": [
+      "Sign in and open <code>/settings</code>.",
+      "Click <b>Dark</b>.",
+      "Inspect the button: no <code>aria-pressed</code>, <code>aria-checked</code> or <code>role</code> attribute is present; only the CSS classes change."
+    ],
+    "note": "Mirror <code>RoleToggle.tsx</code>: wrap the three options in <code>role=\"radiogroup\"</code>, give each <code>role=\"radio\"</code> with <code>aria-checked</code> and a roving tab stop, and add a non-colour affordance such as a check icon on the active option.",
+    "fix": "The three appearance options are now a <code>role=\"radiogroup\"</code> of <code>role=\"radio\"</code> buttons with <code>aria-checked</code>, arrow-key navigation and a roving tab stop — matching <code>RoleToggle</code>, which already had the pattern. A check icon provides the non-colour indicator ACC-006 requires."
+  },
+  {
+    "id": "SAHA-D11",
+    "title": "The profile tabs are not exposed as tabs to assistive technology",
+    "severity": "Medium",
+    "module": "Profile",
+    "type": "Accessibility (WCAG 4.1.2)",
+    "component": "frontend/src/modules/profile/pages/ProfilePage.tsx",
+    "cases": [
+      "PRF-003",
+      "PRF-023",
+      "ACC-003"
+    ],
+    "tests": [
+      "the profile tabs expose tab semantics and a selected state"
+    ],
+    "observed": "“My Profile” and “&lt;Partner&gt;'s Profile” are plain <code>&lt;button&gt;</code> elements inside a styled <code>&lt;div&gt;</code>. There is no <code>role=\"tablist\"</code>, no <code>role=\"tab\"</code>, no <code>aria-selected</code> and no <code>aria-controls</code>; the active tab is indicated by a white background alone. <code>page.getByRole('tab')</code> resolves to zero elements.",
+    "expected": "PRF-003 and PRF-023 require labelled tabs with correct semantics and an identifiable selected state.",
+    "impact": "The control is visually and behaviourally a tab set — two mutually exclusive views of one panel — but is announced as two ordinary buttons. A screen-reader user is not told that the views are alternatives, which one is showing, or that content below changed when they pressed one. Without <code>role=\"tablist\"</code> the expected arrow-key navigation is also absent, so keyboard users must tab through both.",
+    "repro": [
+      "Sign in and open <code>/profile</code>.",
+      "Inspect the two tab buttons — no <code>role</code> or <code>aria-selected</code> attributes are present.",
+      "Switch tabs: only the CSS classes change; nothing in the accessibility tree reflects the new state."
+    ],
+    "note": "Apply the WAI-ARIA tabs pattern — <code>role=\"tablist\"</code> / <code>role=\"tab\"</code> with <code>aria-selected</code>, <code>aria-controls</code> and a roving <code>tabIndex</code>, plus <code>role=\"tabpanel\"</code> on the content. The same pattern applies to the Connect tabs.",
+    "fix": "The profile tabs now implement the WAI-ARIA tabs pattern: <code>role=\"tablist\"</code> / <code>role=\"tab\"</code> with <code>aria-selected</code>, <code>aria-controls</code>, arrow-key navigation and a roving tab stop, with the panel marked <code>role=\"tabpanel\"</code>."
+  },
+  {
+    "id": "SAHA-D12",
+    "title": "Messaging modals cannot be closed with Escape and never move focus into the dialog",
+    "severity": "Medium",
+    "module": "Messaging",
+    "type": "Accessibility (WCAG 2.1.2, 2.4.3)",
+    "component": "frontend/src/modules/messages/components/MessagingDialogs.tsx — Modal",
+    "cases": [
+      "GRP-001",
+      "CFG-001",
+      "ACC-005"
+    ],
+    "tests": [
+      "the group dialog closes on Escape and restores focus",
+      "focus moves into the dialog when it opens"
+    ],
+    "observed": "The shared <code>Modal</code> declares <code>role=\"dialog\"</code> and <code>aria-modal=\"true\"</code> but implements none of the behaviour those attributes promise: there is no <code>keydown</code> handler for Escape, no initial focus move, no focus trap, and no focus restoration on close. After opening “New group chat”, <code>document.activeElement</code> is still the trigger button outside the dialog, and pressing Escape leaves the dialog open.",
+    "expected": "GRP-001 requires dialog semantics with initial focus, a focus trap, and Escape / Close / backdrop / Cancel dismissal, returning focus to the control that opened it.",
+    "impact": "<code>aria-modal=\"true\"</code> tells a screen reader that everything outside the dialog is inert, but focus is still outside it and can Tab freely into the page behind — so the user is navigating content their screen reader has been told does not exist. Escape, the universally expected dismissal key, does nothing, leaving keyboard-only users to hunt for the Close button. On close, focus is lost to the document body rather than returned to the trigger, so the user's place in the page is gone.",
+    "repro": [
+      "Sign in as a couple with at least one accepted connection and open <code>/messages</code>.",
+      "Press <b>New group chat</b>. Inspect <code>document.activeElement</code> — it is still the trigger, outside the dialog.",
+      "Press <kbd>Escape</kbd>. The dialog remains open."
+    ],
+    "note": "Both the New-group and Conversation-settings dialogs use this <code>Modal</code>, so one fix covers both. The project already depends on <code>@radix-ui/react-dialog</code>, which provides focus trapping, Escape handling and focus restoration out of the box.",
+    "fix": "The shared <code>Modal</code> now delivers what <code>aria-modal</code> promises: focus moves to the first control on open, Tab and Shift+Tab wrap inside the dialog, Escape closes it, and focus returns to the trigger on close. One fix covers both the New-group and Conversation-settings dialogs."
+  },
+  {
+    "id": "SAHA-D13",
+    "title": "The reset-password visibility toggle is an unlabelled icon button",
+    "severity": "Medium",
+    "module": "Authentication — Password Recovery",
+    "type": "Accessibility (WCAG 4.1.2)",
+    "component": "frontend/src/modules/auth/pages/ResetPasswordPage.tsx",
+    "cases": [
+      "PWR-009",
+      "ACC-003"
+    ],
+    "tests": [
+      "the reset password visibility toggle has an accessible name"
+    ],
+    "observed": "The show/hide control on <code>/reset-password</code> renders an <code>Eye</code>/<code>EyeOff</code> icon inside a <code>&lt;button&gt;</code> with no text, no <code>aria-label</code> and no <code>aria-pressed</code>. Its accessible name is the empty string. <code>LoginPage.tsx</code> and <code>RegisterStepOneKey.tsx</code> both label the identical control <code>aria-label=\"Show password\" / \"Hide password\"</code> with an <code>aria-pressed</code> state.",
+    "expected": "PWR-009 requires the toggle to work with an accessible name; ACC-003 requires every icon-only button to have one.",
+    "impact": "A screen reader announces only “button”, giving no indication of what it does or whether the password is currently visible. On the reset screen specifically this matters more than elsewhere: the user is typing a password they cannot see into a form they reached because they already could not get in, and reveal is the one affordance that lets them verify it. The inconsistency with the two other password screens also means a user who learned the control on login will not find it here.",
+    "repro": [
+      "Open <code>/reset-password</code>.",
+      "Query the button by accessible name: <code>getByRole('button', { name: /Show password|Hide password/i })</code> → 0 matches.",
+      "The same query on <code>/login</code> → 1 match."
+    ],
+    "note": "One-line fix mirroring <code>LoginPage.tsx</code>: add <code>aria-label={showPassword ? 'Hide password' : 'Show password'}</code> and <code>aria-pressed={showPassword}</code>. Note the single toggle drives both password fields, which is acceptable — only the name and state are missing.",
+    "fix": "Added <code>aria-label</code> (“Show password” / “Hide password”) and <code>aria-pressed</code> to the reset-page toggle, matching the login and registration screens."
+  },
+  {
+    "id": "SAHA-D17",
+    "title": "Concurrent connection writes were unguarded by any database constraint (insert race fixed; accept/reject race still open)",
+    "severity": "Low",
+    "module": "Connect",
+    "type": "Concurrency — unconfirmed",
+    "component": "backend/src/Saha.Application/Features/Connect/ — SendConnectionRequest handler + the unique pair index",
+    "cases": [
+      "CON-016",
+      "CON-018",
+      "REL-004"
+    ],
+    "tests": [
+      "two concurrent identical requests create exactly one connection",
+      "racing accept and reject settle on exactly one terminal state"
+    ],
+    "observed": "Firing two identical <code>POST /connect/request</code> calls in parallel is expected to produce exactly one <code>201</code> and one <code>409</code>. The assertion holds <strong>5 out of 5 times when the test runs alone</strong>, but failed during 2 of 3 full-suite runs. The outcome is therefore load-dependent rather than deterministic.",
+    "expected": "CON-018 requires at most one canonical relation per pair, with the losing request receiving a clean conflict rather than a second row or a 500 from the unique index.",
+    "impact": "Reported at low severity precisely because it is <strong>not confirmed</strong>. If the duplicate row is real, the pair-uniqueness invariant Connect depends on can be broken by a double-click or a client retry, which would then surface as duplicate cards and an ambiguous accept target. If instead the losing request is returning a 500 from the database constraint rather than a handled 409, the invariant holds but the error contract does not.",
+    "repro": [
+      "Seed two complete couples.",
+      "Issue two <code>POST /api/v1/connect/request</code> calls for the same pair in parallel from one authenticated context.",
+      "Run under concurrent load (the full regression suite) rather than in isolation — the failure does not reproduce on an idle backend."
+    ],
+    "evidenceNote": "This entry is deliberately included as an <em>unconfirmed</em> finding rather than omitted, because an intermittent failure against a uniqueness invariant is worth a developer's eye even when the QA run cannot pin it down. <strong>Corroborating signal:</strong> the only two tests in the entire 237-test suite that needed a retry are the two Connect concurrency tests — <code>CON-018</code> (racing duplicate requests) and <code>CON-025</code> (racing accept vs reject). Both exercise concurrent writes to the same connection row, and no other module shows retry behaviour at all. That clustering is more consistent with a real serialisation weakness in the Connect write path than with generic test flake. The local backend is SQLite; the production target is Azure SQL, whose locking behaviour differs, so this needs re-testing against the real engine before it is dismissed.",
+    "note": "<b>Partially resolved — one related race remains open.</b> The insert path (<code>CON-018</code>) is now guarded by a real unique constraint and has been stable since. But <code>CON-025</code> — two clients racing <em>accept</em> against <em>reject</em> on the same pending request — still needs a retry intermittently, and it is now the only Connect test that does. That is an <em>update</em> race on an existing row, which a uniqueness constraint cannot address; it needs optimistic concurrency (a row version / <code>xmin</code> check) or an explicit transaction around the read-modify-write in the accept and reject handlers. Deliberately left open rather than patched blind: the accept/reject handlers carry the authorization checks, and guessing at a concurrency fix there is how a security regression gets introduced.",
+    "fix": "Made the <code>(CoupleAId, CoupleBId)</code> index <strong>unique</strong> — it previously was not, so the handler's check-then-insert had no database-level guard at all — and mapped the constraint violation in <code>ConnectionRepository.AddAsync</code> back to the same <code>409</code> the pre-check returns. Migration <code>UniqueCoupleConnectionPair</code> is index-only and reversible. Pair ordering was deliberately left alone: <code>CoupleBId</code> identifies the recipient in the accept/reject authorization checks, so normalising it would have rewritten security logic to fix a concurrency bug. <b>Scope:</b> this fixes the <em>insert</em> race only — see the note below for the accept/reject update race that remains."
+  },
+  {
+    "id": "SAHA-D15",
+    "title": "A failed message send silently discards what the user typed",
+    "severity": "High",
+    "module": "Messaging",
+    "type": "Data loss / error recovery",
+    "component": "frontend/src/modules/messages/components/ChatThread.tsx — handleSend",
+    "cases": [
+      "TXT-006",
+      "REL-001"
+    ],
+    "tests": [
+      "a failed send does not silently discard the user’s draft"
+    ],
+    "observed": "<code>handleSend</code> clears the draft immediately when the send is initiated, before the mutation resolves. When the send fails (500, timeout, offline), the message never reaches the server and the composer is already empty — the typed text is gone with no way to recover it.",
+    "expected": "TXT-006 requires that send failures do not duplicate or lose the draft silently, and permit a safe retry. REL-001 requires that a mutation attempted offline gives accurate state and no false success.",
+    "impact": "This is unrecoverable user data loss on the most-used control in the product. A long message typed on a flaky connection disappears the moment Enter is pressed; there is no draft to retry, no copy in the clipboard, and no error state that preserves the text. The failure mode is worst exactly where it is most likely — mobile, in a tunnel, on hotel wifi. Users will read the empty composer as “sent” and only discover otherwise when the message never appears in the thread.",
+    "repro": [
+      "Sign in and open a partner conversation.",
+      "Intercept <code>POST /conversations/{id}/messages</code> and force a <code>500</code> (or go offline).",
+      "Type a message and press <kbd>Enter</kbd>.",
+      "Observed: the composer is empty and the message is absent from the thread. Expected: the text is still in the composer, with an error surfaced and a retry available."
+    ],
+    "evidenceNote": "The source carries a comment flagging this exact risk (<code>handleSend</code> clears immediately). The catalogue's TXT-006 source reference records it as a known risk to verify — this run confirms it reproduces.",
+    "note": "Clear the draft in the mutation's <code>onSuccess</code> rather than at initiation, or restore it in <code>onError</code>. The same pattern should be checked for the edit flow, which shares the composer.",
+    "fix": "The draft is now cleared in the mutation's <code>onSuccess</code> rather than at initiation, so a failed send leaves the text in the composer to retry. Because the draft now survives an in-flight request, <code>handleSend</code> also guards on <code>isPending</code> — the Send button was already disabled during the request, but the Enter key bypassed it and would otherwise have sent twice."
+  },
+  {
+    "id": "SAHA-D16",
+    "title": "The \"Read Only\" partner-view banner sits above controls that still write state",
+    "severity": "Medium",
+    "module": "Profile / App shell",
+    "type": "Product semantics / security UX",
+    "component": "frontend/src/shared/stores/partner-view.store.ts + frontend/src/shared/components/layout/PartnerViewBanner.tsx",
+    "cases": [
+      "PRF-022",
+      "NAV-008"
+    ],
+    "tests": [
+      "the banner describes the mode without claiming a read-only guarantee"
+    ],
+    "observed": "Entering “View as partner” shows a persistent banner reading “Viewing as &lt;name&gt; — Read Only Mode” across every in-app route. Only the Profile edit controls are actually suppressed. Navigating to Settings with the banner still displayed and clicking a theme option changes and persists the theme.",
+    "expected": "PRF-022 and NAV-008 require every mutating control to be suppressed or server-protected while the banner is active, and require that the banner never implies impersonation it does not perform.",
+    "impact": "The banner makes a blanket promise the app does not keep. A user who believes they are in a read-only view may act more freely than they otherwise would, and any change they make is written against <em>their own</em> identity — not the partner's — because partner view is presentation state, not server-side impersonation. The mismatch is a correctness problem now (settings persist unexpectedly) and a growing one later: every new mutating feature inherits the false promise unless it explicitly opts into the mode.",
+    "repro": [
+      "Sign in, open <code>/profile</code>, switch to the partner tab and press <b>View as partner</b>.",
+      "Using in-app navigation (the sidebar, not a page reload — the mode is deliberately non-persisted), open <b>Settings</b>. The banner is still shown.",
+      "Click a different appearance option. Observed: the theme changes and persists. Expected: the control is unavailable, or the banner does not claim read-only."
+    ],
+    "note": "This needs a product decision before a code change, which is why it is reported rather than patched. Either scope the banner copy honestly (e.g. “Previewing &lt;name&gt;'s profile”), or make the mode a real read-only gate that feature pages consult. The catalogue already flags the ambiguity as an open risk.",
+    "fix": "Per the product decision the banner was rescoped rather than the enforcement widened: it now reads “Viewing &lt;name&gt;’s profile”, describing what the mode actually is. Partner view remains local presentation state, and the banner no longer promises a read-only session the app does not enforce."
+  },
+  {
+    "id": "SAHA-D14",
+    "title": "The System theme does not follow live OS appearance changes",
+    "severity": "Medium",
+    "module": "Settings",
+    "type": "Functional / integration",
+    "component": "frontend/src/core/stores/theme.store.ts",
+    "cases": [
+      "SET-004"
+    ],
+    "tests": [
+      "System follows the emulated OS preference"
+    ],
+    "observed": "<code>applyTheme('system')</code> reads <code>window.matchMedia('(prefers-color-scheme: dark)').matches</code> once, at the moment the theme is set and at store initialisation. No <code>change</code> listener is registered on the media query, so once <code>system</code> is selected the resolved theme is frozen until the next reload or explicit theme change.",
+    "expected": "SET-004 requires the System option to follow the OS preference <em>at load and on live preference changes</em>, while the stored choice remains <code>system</code>.",
+    "impact": "“System” is understood by users as “follow my device”, and the common case is exactly the one that breaks: macOS, Windows and iOS all switch appearance automatically at sunset. A user who picks System in the morning stays on the light theme all evening, which defeats the point of the setting and leaves them with a bright screen in the dark. The setting looks broken while the stored preference is in fact correct.",
+    "repro": [
+      "Sign in and open <code>/settings</code>; select <b>System</b>.",
+      "Change the OS/browser appearance to dark (in Playwright: <code>page.emulateMedia({ colorScheme: 'dark' })</code>).",
+      "Observed: <code>&lt;html&gt;</code> keeps its previous class — the <code>dark</code> class is not applied until a reload. Expected: the theme follows immediately."
+    ],
+    "note": "Subscribe to the media query (<code>mql.addEventListener('change', …)</code>) while the stored theme is <code>system</code>, and detach when the user picks an explicit theme. Separately worth confirming with product: the store's default is <code>'light'</code> rather than <code>'system'</code>, so a brand-new user does not follow their OS until they opt in.",
+    "fix": "The theme store now subscribes to <code>matchMedia('(prefers-color-scheme: dark)')</code> and re-applies while the stored choice is <code>system</code>, so the theme follows the OS at sunset rather than freezing until reload. Also added <code>onRehydrateStorage</code> so the persisted theme is applied after rehydration rather than only the module-load default."
+  }
+]

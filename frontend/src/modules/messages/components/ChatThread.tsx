@@ -62,15 +62,29 @@ export function ChatThread({ conversationId, detail, onBack, onOpenSettings }: C
   const handleSend = () => {
     const text = draft.trim()
     if (!text) return
+
+    // The draft now survives until the server accepts, so it is still populated while a send is in
+    // flight — a second Enter would send the same text twice. The Send button is disabled during
+    // the request, but the Enter key bypasses it, so the guard has to live here.
+    if (sendText.isPending || editMessage.isPending) return
+
+    // Clear only once the server has accepted the message. Clearing at initiation meant a failed
+    // send — 500, timeout, offline — silently destroyed what the user typed, with no draft left to
+    // retry and no copy anywhere (SAHA-D15). The failure is likeliest on a poor connection, which
+    // is exactly when a long message is most painful to lose.
     if (editing) {
       editMessage.mutate(
         { messageId: editing.id, body: text },
-        { onSuccess: () => setEditing(null) },
+        {
+          onSuccess: () => {
+            setEditing(null)
+            clearDraft(conversationId)
+          },
+        },
       )
     } else {
-      sendText.mutate(text)
+      sendText.mutate(text, { onSuccess: () => clearDraft(conversationId) })
     }
-    clearDraft(conversationId)
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {

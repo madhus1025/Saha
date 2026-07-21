@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -182,6 +183,30 @@ public static class ServiceCollectionExtensions
                 options.JsonSerializerOptions.Converters.Add(
                     new Saha.API.Serialization.UtcDateTimeJsonConverter());
             });
+
+        // Model-binding failures are emitted by the framework as RFC-9110 ProblemDetails, which has
+        // no `code` field — so a client parsing the documented {code, message, errors} envelope
+        // falls back to a generic message and loses the real reason. Emit the same envelope the
+        // exception middleware produces, and drop the ProblemDetails `traceId` we deliberately
+        // withhold from clients.
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = context.ModelState
+                    .Where(entry => entry.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        entry => entry.Key,
+                        entry => entry.Value!.Errors
+                            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage)
+                                ? "The value provided is not valid."
+                                : e.ErrorMessage)
+                            .ToArray());
+
+                return new BadRequestObjectResult(
+                    new ErrorResponse("VALIDATION_ERROR", "One or more validation errors occurred.", errors));
+            };
+        });
 
         // ── OpenTelemetry: traces → Grafana Tempo, metrics → Grafana Mimir ────
         AddOpenTelemetry(services, configuration);

@@ -39,8 +39,16 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResu
         var sw = Stopwatch.StartNew();
         _authMetrics.RecordLoginAttempt();
 
+        // Match `Username.Create` exactly — it trims *and* lowercases, so a stored username never
+        // carries padding. Lowercasing alone left a pasted or autofilled trailing space failing
+        // login with the generic "invalid username or password" message.
+        //
+        // Normalised once and reused: the couple lookup and the partner lookup below must agree, or
+        // the couple resolves and the partner does not.
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
+
         var couple = await _coupleRepository.GetByUsernameWithTokensAsync(
-            request.Username.ToLowerInvariant(), cancellationToken);
+            normalizedUsername, cancellationToken);
 
         if (couple is null || !_passwordHasher.Verify(request.Password, couple.PasswordHash))
         {
@@ -75,7 +83,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResu
             throw new UnauthorizedException("Account is deactivated.");
         }
 
-        var partner = couple.FindPartnerByUsername(request.Username.ToLowerInvariant())!;
+        var partner = couple.FindPartnerByUsername(normalizedUsername)!;
 
         var tokens = _tokenIssuer.IssueFor(couple, partner, request.IpAddress ?? _currentUser.IpAddress);
 

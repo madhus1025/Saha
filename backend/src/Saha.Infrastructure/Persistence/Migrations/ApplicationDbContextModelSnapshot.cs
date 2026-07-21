@@ -288,6 +288,7 @@ namespace Saha.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_CoupleConnections_Status");
 
                     b.HasIndex("CoupleAId", "CoupleBId")
+                        .IsUnique()
                         .HasDatabaseName("IX_CoupleConnections_CoupleAId_CoupleBId");
 
                     b.ToTable("CoupleConnections", (string)null);

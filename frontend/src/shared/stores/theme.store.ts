@@ -20,20 +20,38 @@ export const useThemeStore = create<ThemeState>()(
     {
       name: 'saha-theme',
       storage: createJSONStorage(() => localStorage),
+      // `applyTheme` on module load runs before the persisted value is rehydrated, so without this
+      // a reload would paint the default theme rather than the stored one.
+      onRehydrateStorage: () => (state) => {
+        if (state) applyTheme(state.theme)
+      },
     },
   ),
 )
 
+const prefersDark = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+
 function applyTheme(theme: Theme) {
   const root = document.documentElement
-  if (theme === 'system') {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.classList.toggle('dark', isDark)
-  } else {
-    root.classList.toggle('dark', theme === 'dark')
-  }
+  root.classList.toggle('dark', theme === 'system' ? prefersDark() : theme === 'dark')
 }
 
-// Apply on store initialization
-const { theme } = useThemeStore.getState()
-applyTheme(theme)
+/**
+ * "System" means *follow my device*, and the common case is the one that used to break: macOS,
+ * Windows and iOS all switch appearance automatically at sunset. Reading `matchMedia` once at
+ * selection time froze the resolved theme until the next reload (SAHA-D14), so a user who chose
+ * System in the morning stayed on light all evening.
+ *
+ * The listener stays attached for the life of the tab and simply does nothing while an explicit
+ * theme is selected — cheaper and less error-prone than attaching and detaching on every change.
+ */
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  media.addEventListener('change', () => {
+    if (useThemeStore.getState().theme === 'system') applyTheme('system')
+  })
+}
+
+// Apply on store initialization, before React paints.
+applyTheme(useThemeStore.getState().theme)

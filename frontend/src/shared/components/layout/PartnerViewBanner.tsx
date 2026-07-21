@@ -17,8 +17,14 @@ export function PartnerViewBanner() {
           <div className="bg-gradient-copper px-6 py-2.5 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5 text-white">
               <Eye className="w-4 h-4 flex-shrink-0" />
+              {/*
+                Says only what the mode actually is. "Read Only Mode" claimed a guarantee the app
+                does not keep — partner view is local presentation state, not server-side
+                impersonation, and only the Profile edit controls are suppressed, so Settings and
+                every other feature still wrote state beneath the banner (SAHA-D16).
+              */}
               <span className="text-sm font-medium">
-                Viewing as {partnerName} — Read Only Mode
+                Viewing {partnerName}’s profile
               </span>
             </div>
             <button

@@ -16,9 +16,12 @@ public sealed record ReactionEmoji
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
 
+        // State the constraint rather than echoing the caller's input: reflecting attacker-controlled
+        // text into an error string turns any consumer that renders errors as HTML into an
+        // injection sink, and the caller already knows what it sent.
         if (!Allowed.Contains(normalized))
             throw new DomainValidationException(nameof(ReactionEmoji),
-                $"'{value}' is not a supported reaction.");
+                $"Reaction must be one of: {string.Join(", ", Allowed.Order())}.");
 
         return new ReactionEmoji(normalized);
     }

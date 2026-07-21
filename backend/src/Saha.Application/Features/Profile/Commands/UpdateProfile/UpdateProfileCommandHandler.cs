@@ -36,6 +36,12 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
 
         var partner = couple.GetPartner(request.PartnerId);
 
+        // Registration rejects a duplicate email; update must too. Email is the password-recovery
+        // channel, so letting two accounts share one address delivers a couple's reset code to a
+        // stranger. Excluding self keeps re-saving an unchanged profile valid.
+        if (await _coupleRepository.ExistsByEmailAsync(request.Email, partner.Id, cancellationToken))
+            throw new ConflictException("EMAIL_IN_USE", "That email address is already in use.");
+
         partner.UpdateProfile(request.Name, request.DateOfBirth, request.Email, request.PhoneNumber);
 
         await _coupleRepository.UpdateAsync(couple, cancellationToken);

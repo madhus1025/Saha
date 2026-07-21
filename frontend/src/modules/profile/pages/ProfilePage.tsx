@@ -113,11 +113,32 @@ export function ProfilePage() {
         </p>
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 p-1 bg-sandstone-100 dark:bg-sandstone-900 rounded-2xl">
+      {/*
+        Two mutually exclusive views of one panel is the WAI-ARIA tabs pattern. Plain buttons
+        announced neither that the views were alternatives nor which one was showing — the active
+        state was carried by background colour alone (SAHA-D11). Arrow keys move between tabs and
+        only the selected tab is a tab stop, as the pattern requires.
+      */}
+      <div
+        role="tablist"
+        aria-label="Profile"
+        className="flex gap-1 p-1 bg-sandstone-100 dark:bg-sandstone-900 rounded-2xl"
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+          event.preventDefault()
+          setActiveTab(activeTab === 'me' ? 'partner' : 'me')
+          setIsEditing(false)
+        }}
+      >
         {(['me', 'partner'] as const).map((tab) => (
           <button
             key={tab}
+            type="button"
+            role="tab"
+            id={`profile-tab-${tab}`}
+            aria-selected={activeTab === tab}
+            aria-controls="profile-tabpanel"
+            tabIndex={activeTab === tab ? 0 : -1}
             onClick={() => { setActiveTab(tab); setIsEditing(false) }}
             className={cn(
               'flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
@@ -139,6 +160,9 @@ export function ProfilePage() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
+            role="tabpanel"
+            id="profile-tabpanel"
+            aria-labelledby={`profile-tab-${activeTab}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}

@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using Saha.Application.Common.Exceptions;
 using Saha.Application.Common.Interfaces;
 using Saha.Application.Features.Connect.Commands.AcceptConnectionRequest;
 using Saha.Application.Features.Connect.Commands.RejectConnectionRequest;
@@ -27,8 +28,26 @@ public sealed class ConnectController : ApiControllerBase
         [FromQuery] string? status,
         CancellationToken cancellationToken)
     {
-        ConnectionRequestStatus? parsedStatus = status is not null
-            && Enum.TryParse<ConnectionRequestStatus>(status, true, out var s) ? s : null;
+        // An unparseable filter must not be silently dropped: doing so widens the result set to
+        // "all connections" and the caller has no way to notice it asked for something else.
+        ConnectionRequestStatus? parsedStatus = null;
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<ConnectionRequestStatus>(status, true, out var parsed)
+                || !Enum.IsDefined(parsed))
+            {
+                throw new ApplicationValidationException(
+                    new Dictionary<string, string[]>
+                    {
+                        [nameof(status)] =
+                        [
+                            $"Status must be one of: {string.Join(", ", Enum.GetNames<ConnectionRequestStatus>())}.",
+                        ],
+                    });
+            }
+
+            parsedStatus = parsed;
+        }
 
         var query = new GetConnectionsQuery(_currentUser.CoupleId, parsedStatus);
         var result = await Sender.Send(query, cancellationToken);

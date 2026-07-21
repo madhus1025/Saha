@@ -2,7 +2,9 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    # main -> prod, develop -> staging (see the DEPLOY env resolution below). A manual
+    # workflow_dispatch can target either environment explicitly.
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       environment:
@@ -26,15 +28,15 @@ env:
   DOTNET_VERSION: '9.0.x'
   NODE_VERSION: '20'
   AZURE_LOCATION: centralus
-  AZURE_RESOURCE_GROUP: rg-saha-${{ github.event.inputs.environment || 'prod' }}
-  APP_SERVICE_NAME: app-saha-api-${{ github.event.inputs.environment || 'prod' }}
-  STATIC_WEB_APP_NAME: stapp-saha-${{ github.event.inputs.environment || 'prod' }}
+  AZURE_RESOURCE_GROUP: rg-saha-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
+  APP_SERVICE_NAME: app-saha-api-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
+  STATIC_WEB_APP_NAME: stapp-saha-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
 
 jobs:
   provision:
     name: Provision Azure Infrastructure
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'prod' }}
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
     outputs:
       api_url: ${{ steps.deploy.outputs.apiUrl }}
       static_web_app_url: ${{ steps.deploy.outputs.staticWebAppUrl }}
@@ -49,6 +51,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # The Bicep deployment is resource-group scoped, so the group must exist first. `az group
+      # create` is idempotent (a no-op if it already exists), so this safely bootstraps a brand-new
+      # environment and does nothing on subsequent deploys.
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --output none
+
       - name: Deploy Bicep infrastructure
         id: deploy
         uses: azure/arm-deploy@v2
@@ -57,7 +69,7 @@ jobs:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
           template: infrastructure/bicep/main.bicep
           parameters: >-
-            environment=${{ github.event.inputs.environment || 'prod' }}
+            environment=${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
             location=${{ env.AZURE_LOCATION }}
             sqlAdminLogin=${{ secrets.SQL_ADMIN_LOGIN }}
             sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
@@ -71,7 +83,7 @@ jobs:
     name: Run Database Migrations
     runs-on: ubuntu-latest
     needs: provision
-    environment: ${{ github.event.inputs.environment || 'prod' }}
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +115,7 @@ jobs:
     name: Deploy Backend
     runs-on: ubuntu-latest
     needs: migrate-database
-    environment: ${{ github.event.inputs.environment || 'prod' }}
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -175,7 +187,7 @@ jobs:
     name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: deploy-backend
-    environment: ${{ github.event.inputs.environment || 'prod' }}
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -228,7 +240,7 @@ jobs:
     name: Post-Deployment Smoke Tests
     runs-on: ubuntu-latest
     needs: deploy-frontend
-    environment: ${{ github.event.inputs.environment || 'prod' }}
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -271,13 +283,13 @@ jobs:
       - name: Notify on success
         if: needs.post-deployment-tests.result == 'success'
         run: |
-          echo "Deployment to ${{ github.event.inputs.environment || 'prod' }} succeeded"
+          echo "Deployment to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }} succeeded"
           echo "Commit: ${{ github.sha }}"
           echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Notify on failure
         if: needs.post-deployment-tests.result != 'success'
         run: |
-          echo "Deployment to ${{ github.event.inputs.environment || 'prod' }} failed"
+          echo "Deployment to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'staging') }} failed"
           echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           exit 1

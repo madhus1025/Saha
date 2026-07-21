@@ -65,6 +65,18 @@ public sealed class CoupleRepository : ICoupleRepository
         await _context.Partners
             .AnyAsync(p => p.Username == username.ToLowerInvariant(), cancellationToken);
 
+    public async Task<bool> ExistsByEmailAsync(
+        string email,
+        Guid? excludingPartnerId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        return await _context.Partners
+            .AnyAsync(
+                p => p.Email == normalized && (excludingPartnerId == null || p.Id != excludingPartnerId),
+                cancellationToken);
+    }
+
     // A couple awaiting its partner is not part of the social graph: it must never be discoverable.
     // The filter lives here, not in the handler, so no future caller can forget it.
     public async Task<IReadOnlyList<Couple>> SearchByTogetherIDAsync(

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Saha.Application.Common.Exceptions;
 using Saha.Domain.Entities;
 using Saha.Domain.Enums;
 using Saha.Domain.Interfaces.Repositories;
@@ -53,7 +54,32 @@ public sealed class ConnectionRepository : IConnectionRepository
     public async Task AddAsync(CoupleConnection connection, CancellationToken cancellationToken = default)
     {
         await _context.CoupleConnections.AddAsync(connection, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            // The caller already checked for an existing connection; losing the race to a
+            // concurrent identical request is the same outcome, so it gets the same 409 rather
+            // than a 500 from a raw constraint violation (SAHA-D17).
+            _context.Entry(connection).State = EntityState.Detached;
+            throw new ConflictException("REQUEST_PENDING", "A connection request is already pending.");
+        }
+    }
+
+    /// <summary>
+    /// Provider-agnostic unique-constraint detection: SQLite reports 19 (SQLITE_CONSTRAINT) and
+    /// SQL Server 2601/2627, and the inner exception type differs per provider — so match on the
+    /// message rather than binding this repository to one database engine.
+    /// </summary>
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Cannot insert duplicate key", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task UpdateAsync(CoupleConnection connection, CancellationToken cancellationToken = default)

@@ -110,7 +110,16 @@ export function ResetPasswordPage() {
           error={errors.newPassword?.message}
           required
           rightElement={
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-sandstone-400 hover:text-sandstone-600">
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              // Icon-only control: without a name a screen reader announces just "button", and on
+              // the reset screen this is the one affordance that lets a user verify what they typed
+              // into a form they reached because they already could not get in (SAHA-D13).
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              className="text-sandstone-400 hover:text-sandstone-600"
+            >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           }

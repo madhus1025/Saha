@@ -29,32 +29,32 @@ test.describe('Settings', () => {
 
   test('shows Appearance card with Light, Dark, System options', async ({ page }) => {
     await expect(page.getByText('Appearance')).toBeVisible()
-    await expect(page.getByRole('button', { name: /light/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /dark/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /system/i })).toBeVisible()
+    await expect(page.getByRole('radio', { name: /light/i })).toBeVisible()
+    await expect(page.getByRole('radio', { name: /dark/i })).toBeVisible()
+    await expect(page.getByRole('radio', { name: /system/i })).toBeVisible()
   })
 
   test('selecting Dark theme updates active state', async ({ page }) => {
-    const darkBtn = page.getByRole('button', { name: /dark/i })
+    const darkBtn = page.getByRole('radio', { name: /dark/i })
     await darkBtn.click()
     await expect(darkBtn).toHaveClass(/border-gold-400/)
   })
 
   test('selecting Light theme updates active state', async ({ page }) => {
-    await page.getByRole('button', { name: /dark/i }).click()
-    const lightBtn = page.getByRole('button', { name: /light/i })
+    await page.getByRole('radio', { name: /dark/i }).click()
+    const lightBtn = page.getByRole('radio', { name: /light/i })
     await lightBtn.click()
     await expect(lightBtn).toHaveClass(/border-gold-400/)
   })
 
   test('selecting System theme updates active state', async ({ page }) => {
-    const systemBtn = page.getByRole('button', { name: /system/i })
+    const systemBtn = page.getByRole('radio', { name: /system/i })
     await systemBtn.click()
     await expect(systemBtn).toHaveClass(/border-gold-400/)
   })
 
   test('only one theme option is active at a time', async ({ page }) => {
-    await page.getByRole('button', { name: /dark/i }).click()
+    await page.getByRole('radio', { name: /dark/i }).click()
     const activeButtons = await page.locator('button.border-gold-400').count()
     expect(activeButtons).toBe(1)
   })
@@ -70,13 +70,13 @@ test.describe('Settings', () => {
   })
 
   test('dark mode applies dark class to html element', async ({ page }) => {
-    await page.getByRole('button', { name: /dark/i }).click()
+    await page.getByRole('radio', { name: /dark/i }).click()
     await expect(page.locator('html')).toHaveClass(/dark/)
   })
 
   test('light mode removes dark class from html element', async ({ page }) => {
-    await page.getByRole('button', { name: /dark/i }).click()
-    await page.getByRole('button', { name: /light/i }).click()
+    await page.getByRole('radio', { name: /dark/i }).click()
+    await page.getByRole('radio', { name: /light/i }).click()
     const htmlClass = await page.locator('html').getAttribute('class')
     expect(htmlClass ?? '').not.toContain('dark')
   })

@@ -13,7 +13,7 @@ export const API_BASE =
   process.env['SAHA_API_BASE'] ?? 'https://localhost:7001/api/v1'
 
 /** Shared password that satisfies the register validator for every seeded couple. */
-export const SEED_PASSWORD = 'our quiet home by the sea'
+export const SEED_PASSWORD = 'Our quiet home by the sea 1!'
 
 export interface Partner {
   username: string
