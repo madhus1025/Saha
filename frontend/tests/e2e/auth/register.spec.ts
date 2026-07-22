@@ -22,7 +22,7 @@ test.describe('Registration wizard', () => {
     await page.goto('/register')
   })
 
-  test('step 1 asks only for your own half @smoke', async ({ page }) => {
+  test('step 1 asks only for your own half', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'First, you' })).toBeVisible()
     await expect(page.getByText('Step 1 of 3')).toBeVisible()
     await expect(

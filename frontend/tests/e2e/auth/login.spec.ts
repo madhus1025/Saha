@@ -41,7 +41,7 @@ test.describe('Login', () => {
     expect(await passwordInput.getAttribute('type')).toBe('password')
   })
 
-  test('navigates to register page @smoke', async ({ page }) => {
+  test('navigates to register page', async ({ page }) => {
     await page.getByRole('link', { name: /create our home/i }).click()
     await expect(page).toHaveURL('/register')
   })
