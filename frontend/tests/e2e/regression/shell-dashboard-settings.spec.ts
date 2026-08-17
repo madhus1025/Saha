@@ -96,11 +96,15 @@ test.describe('NAV · Routing and shell', () => {
     await expect(root, 'the chosen theme must survive a reload').toHaveClass(after ?? '')
   })
 
-  test('[NAV-006] the top-bar avatar links to the profile and shows the signed-in username', async ({
+  test('[NAV-006] the top-bar identifies the signed-in partner by name and links to the profile', async ({
     page,
   }) => {
     await loginViaUi(page, ROSTER.madhu.username)
-    await expect(page.getByText(ROSTER.madhu.username).first()).toBeVisible()
+    await expect(
+      page.getByText(ROSTER.madhu.name).first(),
+      'the app shell must identify the user by their display name',
+    ).toBeVisible()
+
     await page.locator('a[href="/profile"]').first().click()
     await expect(page).toHaveURL(/\/profile/)
   })
@@ -138,9 +142,19 @@ test.describe('NAV · Routing and shell', () => {
 })
 
 test.describe('DASH · Dashboard', () => {
-  test('[DASH-001] the dashboard greets the signed-in partner by name', async ({ page }) => {
+  test('[DASH-001] the dashboard greets the signed-in partner by name, not by username', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
-    await expect(page.getByText(/Good (morning|afternoon|evening)/i).first()).toBeVisible()
+
+    // Asserting only that *a* greeting rendered is what let "Good morning, madhu" ship: the old
+    // fixture name ("Madhu A") contained the username, so either field satisfied the check.
+    const greeting = page.getByText(/Good (morning|afternoon|evening)/i).first()
+    await expect(greeting).toBeVisible()
+    await expect(greeting, 'the greeting must use the display name').toContainText(ROSTER.madhu.name)
+    await expect(greeting, 'the greeting must not use the login username').not.toContainText(
+      ROSTER.madhu.username,
+    )
   })
 
   test('[DASH-002] the dashboard shows the couple’s own TogetherID and no other', async ({ page }) => {
@@ -149,17 +163,26 @@ test.describe('DASH · Dashboard', () => {
     await expect(page.locator('body')).not.toContainText(ROSTER.ravi.togetherID)
   })
 
-  test('[DASH-003] the couple card shows both partners regardless of who signed in', async ({ page }) => {
-    await loginViaUi(page, ROSTER.madhu.username)
-    await expect(page.getByText(/madhu/i).first()).toBeVisible()
-    await expect(page.getByText(/priya/i).first()).toBeVisible()
+  test('[DASH-003] the couple card names both partners consistently, whoever signed in', async ({
+    page,
+  }) => {
+    // Both halves of the card must use the same field. The bug this catches showed the *partner*
+    // by name and the *signed-in user* by username, in the same card.
+    for (const who of [ROSTER.madhu, ROSTER.priya] as const) {
+      await loginViaUi(page, who.username)
+      const counterpart = who === ROSTER.madhu ? ROSTER.priya : ROSTER.madhu
 
-    await page.getByRole('button', { name: /Sign out/i }).click()
-    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+      await expect(page.getByText(ROSTER.madhu.name).first()).toBeVisible()
+      await expect(page.getByText(ROSTER.priya.name).first()).toBeVisible()
+      await expect(
+        page.locator('body'),
+        `signed in as ${who.username}: the card must not fall back to a login username`,
+      ).not.toContainText(who.username)
+      await expect(page.locator('body')).not.toContainText(counterpart.username)
 
-    await loginViaUi(page, ROSTER.priya.username)
-    await expect(page.getByText(/madhu/i).first()).toBeVisible()
-    await expect(page.getByText(/priya/i).first()).toBeVisible()
+      await page.getByRole('button', { name: /Sign out/i }).click()
+      await expect(page).toHaveURL(/\/login/, { timeout: 15_000 })
+    }
   })
 
   test('[DASH-004] all six module cards render and each navigates by keyboard', async ({ page }) => {

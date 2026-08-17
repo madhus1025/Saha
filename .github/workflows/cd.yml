@@ -51,16 +51,35 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # The Bicep deployment is resource-group scoped, so the group must exist first. `az group
-      # create` is idempotent (a no-op if it already exists), so this safely bootstraps a brand-new
-      # environment and does nothing on subsequent deploys.
+      # The Bicep deployment is resource-group scoped, so the group must exist first.
+      #
+      # `az group create` is NOT the no-op it looks like: it fails with
+      # InvalidResourceGroupLocation when the group already exists in a different region than the
+      # one passed (rg-saha-staging is in eastus2, AZURE_LOCATION is centralus). Checking first also
+      # keeps this least-privilege — an existing group needs only read, not
+      # Microsoft.Resources/subscriptions/resourcegroups/write at subscription scope.
       - name: Ensure resource group exists
+        id: rg
         run: |
-          az group create \
-            --name ${{ env.AZURE_RESOURCE_GROUP }} \
-            --location ${{ env.AZURE_LOCATION }} \
-            --output none
+          set -euo pipefail
+          if [ "$(az group exists --name "${{ env.AZURE_RESOURCE_GROUP }}")" = "true" ]; then
+            rg_location="$(az group show --name "${{ env.AZURE_RESOURCE_GROUP }}" --query location -o tsv)"
+            echo "Resource group ${{ env.AZURE_RESOURCE_GROUP }} already exists in $rg_location."
+          else
+            echo "Creating ${{ env.AZURE_RESOURCE_GROUP }} in ${{ env.AZURE_LOCATION }}."
+            az group create \
+              --name "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --location "${{ env.AZURE_LOCATION }}" \
+              --output none
+            rg_location="${{ env.AZURE_LOCATION }}"
+          fi
+          echo "location=$rg_location" >> "$GITHUB_OUTPUT"
 
+      # `location` below is the resource location and is deliberately NOT derived from the resource
+      # group. rg-saha-staging sits in eastus2 while every resource inside it was provisioned in
+      # centralus, which Azure permits. Taking the group's location would try to recreate those
+      # resources in eastus2 and fail with InvalidResourceLocation — an existing resource cannot
+      # change region.
       - name: Deploy Bicep infrastructure
         id: deploy
         uses: azure/arm-deploy@v2

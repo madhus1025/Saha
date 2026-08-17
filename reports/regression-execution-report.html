@@ -1,0 +1,3164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saha · Fix Verification &amp; Regression Report</title>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
+    --fg:#e6e9ef; --muted:#98a1b3;
+    --pass:#3fb950; --fail:#f85149; --skip:#d29922; --accent:#58a6ff;
+    --crit:#f85149; --high:#ff7b45; --med:#d29922; --low:#58a6ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --panel:#fff; --panel2:#f0f2f5; --line:#dfe3ea;
+            --fg:#12151a; --muted:#5b6472; --accent:#0a66c2; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:32px 20px 96px }
+  code { font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+         background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 5px }
+  h1 { font-size:30px; margin:0 0 6px; letter-spacing:-.02em }
+  h2 { font-size:21px; margin:44px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line) }
+  h3 { font-size:17px; margin:0 }
+  h4 { font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+       margin:18px 0 5px }
+  p { margin:6px 0 }
+  .sub { color:var(--muted); margin-bottom:22px }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:22px 0 8px }
+  .kpi { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px }
+  .kpi b { display:block; font-size:29px; line-height:1.15; letter-spacing:-.02em }
+  .kpi span { color:var(--muted); font-size:12.5px }
+  .kpi.pass b { color:var(--pass) } .kpi.fail b { color:var(--fail) } .kpi.warn b { color:var(--skip) }
+
+  .mgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin:16px 0 }
+  .mcard { display:block; text-decoration:none; color:inherit; background:var(--panel);
+           border:1px solid var(--line); border-left:4px solid var(--pass);
+           border-radius:10px; padding:14px; transition:transform .12s ease }
+  .mcard:hover { transform:translateY(-2px) }
+  .mcard.warn { border-left-color:var(--skip) } .mcard.bad { border-left-color:var(--fail) }
+  .mcard-name { font-weight:600; font-size:14px; margin-bottom:9px; line-height:1.35 }
+  .mcard-bar { height:6px; background:var(--panel2); border-radius:99px; overflow:hidden; margin-bottom:8px }
+  .mcard-bar span { display:block; height:100%; background:var(--pass) }
+  .mcard.bad .mcard-bar span { background:var(--fail) }
+  .mcard.warn .mcard-bar span { background:var(--skip) }
+  .mcard-stats { font-size:12.5px; color:var(--muted) }
+  .mcard-stats em { color:var(--fail); font-style:normal; margin-left:6px }
+  .mcard-stats i { color:var(--pass); font-style:normal; margin-left:6px }
+
+  .module { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+            padding:18px; margin:16px 0 }
+  .mhead { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between }
+  .mnums { display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+  .msrc { color:var(--muted); font-size:12.5px; margin:8px 0 14px }
+
+  .tblwrap, .ttable { width:100% }
+  .ttable { border-collapse:collapse; display:block; overflow-x:auto }
+  .ttable th { text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em;
+               color:var(--muted); border-bottom:1px solid var(--line); padding:8px 10px; font-weight:600 }
+  .ttable td { border-bottom:1px solid var(--line); padding:9px 10px; vertical-align:top }
+  .ttable tr:last-child td { border-bottom:0 }
+  .row-fail { background:color-mix(in srgb, var(--fail) 8%, transparent) }
+  .c-ids { white-space:nowrap; width:1%; }
+  .c-status, .c-dur { white-space:nowrap; width:1% }
+  .c-dur { color:var(--muted); font-size:12.5px }
+  .muted { color:var(--muted) }
+
+  .pill { display:inline-block; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:99px;
+          border:1px solid transparent; white-space:nowrap }
+  .p-pass { color:var(--pass); background:color-mix(in srgb,var(--pass) 14%,transparent); border-color:color-mix(in srgb,var(--pass) 32%,transparent) }
+  .p-fail { color:var(--fail); background:color-mix(in srgb,var(--fail) 14%,transparent); border-color:color-mix(in srgb,var(--fail) 32%,transparent) }
+  .p-flaky { color:#a371f7; background:color-mix(in srgb,#a371f7 14%,transparent); border-color:color-mix(in srgb,#a371f7 32%,transparent) }
+  .p-skip { color:var(--skip); background:color-mix(in srgb,var(--skip) 14%,transparent); border-color:color-mix(in srgb,var(--skip) 32%,transparent) }
+
+  details { margin-top:7px } summary { cursor:pointer; color:var(--accent); font-size:12.5px }
+  pre.err { background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--fail);
+            border-radius:7px; padding:11px; overflow-x:auto; font:12px/1.55 ui-monospace,Menlo,monospace;
+            white-space:pre-wrap; word-break:break-word; margin:9px 0 }
+
+  .defect { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+            padding:20px; margin:16px 0; border-top:4px solid var(--med) }
+  .defect.sev-critical { border-top-color:var(--crit) }
+  .defect.sev-high { border-top-color:var(--high) }
+  .defect.sev-medium { border-top-color:var(--med) }
+  .defect.sev-low { border-top-color:var(--low) }
+  .defect header { display:flex; gap:11px; align-items:baseline; flex-wrap:wrap }
+  .sev { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+         padding:3px 9px; border-radius:5px; color:#0f1115; background:var(--med) }
+  .sev-critical .sev { background:var(--crit); color:#fff }
+  .sev-high .sev { background:var(--high); color:#fff }
+  .sev-low .sev { background:var(--low); color:#fff }
+  .status { margin-left:auto; font-size:12px; font-weight:600; padding:3px 10px; border-radius:99px; white-space:nowrap }
+  .s-fixed { color:var(--pass); background:color-mix(in srgb,var(--pass) 14%,transparent); border:1px solid color-mix(in srgb,var(--pass) 34%,transparent) }
+  .s-open { color:var(--fail); background:color-mix(in srgb,var(--fail) 14%,transparent); border:1px solid color-mix(in srgb,var(--fail) 34%,transparent) }
+  .fix { background:color-mix(in srgb,var(--pass) 9%,transparent);
+         border:1px solid color-mix(in srgb,var(--pass) 28%,transparent);
+         border-radius:8px; padding:11px 13px; font-size:13.5px }
+  .dmeta { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px;
+           background:var(--panel2); border-radius:9px; padding:12px; margin:14px 0 }
+  .dmeta dt { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600 }
+  .dmeta dd { margin:3px 0 0; font-size:13.5px }
+  .repro { margin:6px 0 0; padding-left:20px } .repro li { margin:3px 0 }
+  .tlist { margin:6px 0 0; padding-left:18px; font-size:13.5px } .tlist li { margin:3px 0 }
+  .warnnote { background:color-mix(in srgb,var(--skip) 12%,transparent) !important;
+              border-color:color-mix(in srgb,var(--skip) 36%,transparent) !important }
+  .note { background:color-mix(in srgb,var(--accent) 10%,transparent);
+          border:1px solid color-mix(in srgb,var(--accent) 32%,transparent);
+          border-radius:8px; padding:11px 13px; margin-top:16px; font-size:13.5px }
+
+  .shots { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-top:8px }
+  .shots figure { margin:0; background:var(--panel2); border:1px solid var(--line); border-radius:9px; overflow:hidden }
+  .shots img { display:block; width:100%; height:auto }
+  .shots figcaption { font-size:11.5px; color:var(--muted); padding:7px 9px; border-top:1px solid var(--line) }
+  .thumb { max-width:100%; border:1px solid var(--line); border-radius:7px; margin-top:7px }
+  .empty { color:var(--muted); font-style:italic }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:13px; margin:10px 0 0 }
+  footer { margin-top:52px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px }
+  a { color:var(--accent) }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Saha · Fix Verification &amp; Regression Report</h1>
+  <p class="sub">
+    Automated execution of the manual test catalogue in <code>test-cases/</code>,
+    run against the real backend (<code>ASPNETCORE_ENVIRONMENT=IntegrationTest</code>) and the Vite dev server.<br>
+    Run started Tue, 21 Jul 2026 12:34:42 GMT · wall clock 381.4s ·
+    Desktop Chromium · timezone <code>Asia/Kolkata</code>.
+  </p>
+
+  <div class="kpis">
+    <div class="kpi"><b>239</b><span>tests executed</span></div>
+    <div class="kpi pass"><b>237</b><span>passed (99.2%)</span></div>
+    <div class="kpi pass"><b>0</b><span>failing</span></div>
+    <div class="kpi warn"><b>2</b><span>flaky (passed on retry)</span></div>
+    <div class="kpi pass"><b>17</b><span>defects fixed &amp; verified</span></div>
+    <div class="kpi"><b>194</b><span>catalogue case IDs exercised</span></div>
+    <div class="kpi"><b>8</b><span>modules</span></div>
+  </div>
+
+  <h2>Results by module</h2>
+  <div class="mgrid">
+    <a class="mcard ok" href="#mod-auth-login-session.spec.ts">
+      <div class="mcard-name">Authentication — Login, Session &amp; Logout</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>25</b>/25 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-auth-recovery.spec.ts">
+      <div class="mcard-name">Authentication — Password Recovery</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>13</b>/13 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-auth-registration.spec.ts">
+      <div class="mcard-name">Registration, Invitations &amp; Couple Lifecycle</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>34</b>/34 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-shell-dashboard-settings.spec.ts">
+      <div class="mcard-name">App Shell, Dashboard, Modules &amp; Settings</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>26</b>/27 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-profile.spec.ts">
+      <div class="mcard-name">Profile, Avatar &amp; Partner View</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>22</b>/22 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-connect.spec.ts">
+      <div class="mcard-name">Couple Discovery &amp; Connections</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>28</b>/29 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-messaging.spec.ts">
+      <div class="mcard-name">Conversations, Messages, Reactions &amp; Groups</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>53</b>/53 passed
+        <i>clean</i>
+      </div>
+    </a>
+    <a class="mcard ok" href="#mod-security-crosscutting.spec.ts">
+      <div class="mcard-name">Cross-Cutting — Security, Reliability, Accessibility, Responsive &amp; Telemetry</div>
+      <div class="mcard-bar"><span style="width:100.0%"></span></div>
+      <div class="mcard-stats">
+        <b>36</b>/36 passed
+        <i>clean</i>
+      </div>
+    </a></div>
+
+  <h2>Defects fixed (17)</h2>
+  <p class="sub">
+    Each defect below was first reproduced by a failing automated test, then fixed, and is now
+    verified by that same test passing. The tests are permanent members of the regression suite, so
+    a future change that reintroduces any of these turns the linked test red again.
+  </p>
+  
+      <article class="defect sev-high" id="SAHA-D01">
+        <header>
+          <span class="sev">High</span>
+          <h3>SAHA-D01 · Password reset enforces a different — and in places weaker — password policy than registration</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Authentication — Password Recovery</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PWR-008</code> <code>REG-016</code> <code>REG-017</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Auth/Commands/ResetPassword/ResetPasswordCommandValidator.cs</code></dd></div>
+          <div><dt>Type</dt><dd>Business rule / security policy</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>ResetPasswordCommandValidator</code> requires 8–128 characters <em>plus</em> an uppercase letter, a lowercase letter, a digit and a special character. <code>RegisterCoupleCommandValidator</code> / <code>register.schema.ts</code> require at least 12 characters and at most 72 UTF-8 bytes, with <strong>no</strong> character-class rules. The two validators disagree in three separate directions.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>One password policy, enforced identically wherever a password is set. PWR-008 specifies 8–128 plus character classes; REG-016/REG-017 specify 12 characters minimum and a 72-byte ceiling. Whichever the product chooses, both endpoints must apply it.</p>
+
+        <h4>Why it matters</h4>
+        <p><strong>(a) Users are locked out of their own password style.</strong> The passphrase the product markets and seeds — <code>our quiet home by the sea</code> — is legal at registration but rejected at reset with “must contain at least one uppercase letter”. A couple who registered with a passphrase can never reset to a similar one.<br><strong>(b) Reset silently weakens the account.</strong> An 8-character password clears the reset validator, four characters below the floor registration guarantees.<br><strong>(c) Silent BCrypt truncation.</strong> Registration caps at 72 UTF-8 bytes precisely because BCrypt ignores everything past byte 72 — the schema carries a comment saying so. Reset allows 128 characters, so bytes 73–128 of a long reset password are silently discarded. The user believes they set a 128-character password; the system stored 72 bytes of it.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li><code>POST /api/v1/auth/reset-password</code> with <code>newPassword</code> = <code>our quiet home by the sea</code> → <code>400</code>, “Password must contain at least one uppercase letter / digit”. The same value is accepted by <code>POST /api/v1/auth/register</code>.</li><li>Repeat with <code>newPassword</code> = <code>Abcd123!</code> (8 characters) → the validator passes and the request reaches the code check (<code>401</code> for a wrong code), proving the length rule never fired.</li><li>Repeat with a 100-character password → the validator passes again; no 72-byte ceiling is applied.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Extracted the policy into a single <code>PasswordRules.SharedPassword()</code> rule now used by <em>both</em> <code>RegisterCoupleCommandValidator</code> and <code>ResetPasswordCommandValidator</code>, and mirrored in <code>register.schema.ts</code>. Per the product decision the unified rule is the character-class one: ≥ 8 characters with uppercase, lowercase, digit and special. The 72-byte BCrypt ceiling was additionally applied to <em>reset</em>, which previously allowed 128 characters and silently truncated past byte 72.</div>
+        <h4>Evidence at the time of reporting</h4><p>All three legs are API-level and deterministic — no UI timing is involved. A <code>401 Invalid or expired verification code</code> response is proof the payload <em>cleared</em> validation, because validation runs before the code lookup.</p>
+        
+        
+
+        <h4>Verified by 7 regression tests</h4>
+        <ul class="tlist"><li><code>auth-recovery.spec.ts:95</code> — a password accepted at registration is also accepted at reset <span class="pill p-pass">passed</span></li><li><code>auth-recovery.spec.ts:107</code> — reset enforces the agreed 8-character minimum <span class="pill p-pass">passed</span></li><li><code>auth-recovery.spec.ts:119</code> — reset requires the same character classes as registration <span class="pill p-pass">passed</span></li><li><code>auth-recovery.spec.ts:131</code> — reset rejects passwords beyond the 72-byte BCrypt ceiling <span class="pill p-pass">passed</span></li><li><code>auth-registration.spec.ts:198</code> — a 7-character password is rejected and 8 is accepted <span class="pill p-pass">passed</span></li><li><code>auth-registration.spec.ts:214</code> — every character class is required at registration <span class="pill p-pass">passed</span></li><li><code>auth-registration.spec.ts:232</code> — a password over 72 UTF-8 bytes is rejected even when under 72 characters <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Decide the single policy first, then apply it in both validators and in <code>register.schema.ts</code>. If passphrases are the intent, drop the character-class rules from reset and raise its minimum to 12 with a 72-byte cap. Whatever is chosen, the 72-byte BCrypt ceiling must exist on every path that hashes a password.</div>
+      </article>
+      <article class="defect sev-high" id="SAHA-D04">
+        <header>
+          <span class="sev">High</span>
+          <h3>SAHA-D04 · Profile update lets a partner take an email address already registered to another account</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Profile</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PRF-008</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Profile/Commands/UpdateProfile/</code></dd></div>
+          <div><dt>Type</dt><dd>Data integrity / uniqueness</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>PUT /api/v1/profile/me</code> with an <code>email</code> that already belongs to a partner in a different couple returns <code>204 No Content</code> and persists the change. Registration rejects a duplicate email, so uniqueness is enforced on create but not on update.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>PRF-008 requires email conflicts with another partner or account to be rejected atomically, consistent with the uniqueness registration already enforces.</p>
+
+        <h4>Why it matters</h4>
+        <p>Email is the recovery channel: <code>POST /auth/forgot-password</code> sends the reset code to both partners' addresses. Once two accounts share an address, a reset code for one couple is delivered to a person in a different couple — a cross-account account-takeover path that needs no credentials, only a profile edit. It also makes email unusable as a support identifier and can break any downstream unique index or notification routing.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Register couple A and couple B (any two complete couples with distinct emails).</li><li>Authenticate as a partner in couple A.</li><li><code>PUT /api/v1/profile/me</code> with a valid body whose <code>email</code> is couple B's registrant email.</li><li>Observed: <code>204</code> and the value is persisted — re-reading <code>GET /profile/me</code> shows the duplicated address. Expected: <code>409</code> (or <code>400</code>) with no write.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Added <code>ICoupleRepository.ExistsByEmailAsync(email, excludingPartnerId)</code> and a conflict check in <code>UpdateProfileCommandHandler</code>, returning <code>409 EMAIL_IN_USE</code>. Self-exclusion keeps re-saving an unchanged profile valid.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>profile.spec.ts:181</code> — a partner cannot take an email that already belongs to another account <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Needs both a uniqueness check in the update handler and a unique index on the email column, so a race between two concurrent updates cannot slip through the check.</div>
+      </article>
+      <article class="defect sev-high" id="SAHA-D15">
+        <header>
+          <span class="sev">High</span>
+          <h3>SAHA-D15 · A failed message send silently discards what the user typed</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Messaging</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>TXT-006</code> <code>REL-001</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/modules/messages/components/ChatThread.tsx — handleSend</code></dd></div>
+          <div><dt>Type</dt><dd>Data loss / error recovery</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>handleSend</code> clears the draft immediately when the send is initiated, before the mutation resolves. When the send fails (500, timeout, offline), the message never reaches the server and the composer is already empty — the typed text is gone with no way to recover it.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>TXT-006 requires that send failures do not duplicate or lose the draft silently, and permit a safe retry. REL-001 requires that a mutation attempted offline gives accurate state and no false success.</p>
+
+        <h4>Why it matters</h4>
+        <p>This is unrecoverable user data loss on the most-used control in the product. A long message typed on a flaky connection disappears the moment Enter is pressed; there is no draft to retry, no copy in the clipboard, and no error state that preserves the text. The failure mode is worst exactly where it is most likely — mobile, in a tunnel, on hotel wifi. Users will read the empty composer as “sent” and only discover otherwise when the message never appears in the thread.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in and open a partner conversation.</li><li>Intercept <code>POST /conversations/{id}/messages</code> and force a <code>500</code> (or go offline).</li><li>Type a message and press <kbd>Enter</kbd>.</li><li>Observed: the composer is empty and the message is absent from the thread. Expected: the text is still in the composer, with an error surfaced and a retry available.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The draft is now cleared in the mutation's <code>onSuccess</code> rather than at initiation, so a failed send leaves the text in the composer to retry. Because the draft now survives an in-flight request, <code>handleSend</code> also guards on <code>isPending</code> — the Send button was already disabled during the request, but the Enter key bypassed it and would otherwise have sent twice.</div>
+        <h4>Evidence at the time of reporting</h4><p>The source carries a comment flagging this exact risk (<code>handleSend</code> clears immediately). The catalogue's TXT-006 source reference records it as a known risk to verify — this run confirms it reproduces.</p>
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>messaging.spec.ts:341</code> — a failed send does not silently discard the user’s draft <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Clear the draft in the mutation's <code>onSuccess</code> rather than at initiation, or restore it in <code>onError</code>. The same pattern should be checked for the edit flow, which shares the composer.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D02">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D02 · Reset verification code accepts non-ASCII Unicode digits</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Authentication — Password Recovery</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PWR-007</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Auth/Commands/ResetPassword/ResetPasswordCommandValidator.cs</code></dd></div>
+          <div><dt>Type</dt><dd>Input validation</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>The code rule is <code>Matches(@"^\d{6}$")</code>. In .NET, <code>\d</code> matches every Unicode decimal digit, not just <code>0-9</code>. The Arabic-Indic string <code>١٢٣٤٥٦</code> passes validation and is forwarded to the token lookup, which answers <code>401 Invalid or expired verification code</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>PWR-007 requires the field to accept exactly six <em>ASCII</em> digits and to reject Unicode digits at validation with a <code>400</code>.</p>
+
+        <h4>Why it matters</h4>
+        <p>Codes that cannot possibly match a generated token still consume a token-lookup round trip and are counted as a code attempt rather than a malformed request. That blurs the boundary between “you typed it wrong” and “this input is not a code at all”, and — where reset attempts are rate-limited or lockout-counted — lets an attacker burn a victim's attempt budget with input the validator was supposed to stop.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li><code>POST /api/v1/auth/reset-password</code> with <code>{ "togetherIDOrUsername": "madhu", "code": "١٢٣٤٥٦", "newPassword": "ValidPass1!", "confirmPassword": "ValidPass1!" }</code>.</li><li>Observed: <code>401 UNAUTHORIZED</code> — validation passed. Expected: <code>400 VALIDATION_ERROR</code>.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Changed the code pattern from <code>^\d{6}$</code> to <code>^[0-9]{6}$</code>. In .NET <code>\d</code> matches every Unicode decimal digit, so Arabic-Indic digits cleared validation and consumed a token lookup.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>auth-recovery.spec.ts:67</code> — the code must be exactly six ASCII digits <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> <code>RegexOptions.ECMAScript</code>, or an explicit <code>^[0-9]{6}$</code> character class, restricts the match to ASCII. The same <code>\d</code> caveat applies anywhere else a numeric format is validated.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D03">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D03 · Login rejects a username that carries surrounding whitespace, though the stored identity is trimmed</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Authentication — Login</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>AUTH-004</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Auth/Commands/Login/ — login handler lookup</code></dd></div>
+          <div><dt>Type</dt><dd>Normalisation inconsistency</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>Username.Create</code> normalises with <code>value.Trim().ToLowerInvariant()</code>, so every stored username is trimmed and lowercase. Login applies only the case half of that normalisation: <code>MADHU</code> authenticates (<code>200</code>), but <code>"  madhu  "</code> is refused with <code>401 Invalid username or password</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>AUTH-004 requires login to apply the same normalisation as the domain value object, so leading/trailing whitespace and case variation resolve to the same identity.</p>
+
+        <h4>Why it matters</h4>
+        <p>Password managers, mobile keyboards and copy-paste routinely append a trailing space. The user sees the generic “Invalid username or password” message, which points them at their password — the one thing that is actually correct. There is nothing on screen that could lead them to the real cause, so this presents as an unexplainable login failure and drives password resets that will not help.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li><code>POST /api/v1/auth/login</code> with <code>{ "username": "madhu", "password": "&lt;shared password&gt;" }</code> → <code>200</code>.</li><li><code>POST /api/v1/auth/login</code> with <code>{ "username": "  madhu  " }</code> and the same password → <code>401</code>.</li><li><code>POST /api/v1/auth/login</code> with <code>{ "username": "MADHU" }</code> → <code>200</code>, confirming case is already handled and only trimming is missing.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The login handler now normalises once — <code>request.Username.Trim().ToLowerInvariant()</code> — and reuses that value for both the couple lookup and the partner lookup. Fixing only the first lookup initially produced a 500, because the couple resolved while the partner did not; the regression test caught it before this shipped.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>auth-login-session.spec.ts:88</code> — username lookup tolerates surrounding whitespace <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Route the login lookup through <code>Username.Create</code> (or trim before the lookup) so one normalisation rule governs both write and read paths.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D05">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D05 · An invalid connection status filter is silently ignored instead of rejected</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Connect</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>CON-026</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.API/Controllers/ConnectController.cs — GetConnections</code></dd></div>
+          <div><dt>Type</dt><dd>API contract</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>GET /api/v1/connect/connections?status=NotAStatus</code> returns <code>200</code> with a populated list — the unparseable filter is dropped and the request is served as though no filter had been supplied.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>CON-026 requires the status filter contract to be validated: an invalid value must be refused with a <code>400</code> rather than silently widening the result set.</p>
+
+        <h4>Why it matters</h4>
+        <p>A caller that misspells a status — or sends a value from a newer client build — receives data it did not ask for and has no way to detect the mistake. A UI that requests <code>Pending</code> but sends a typo renders <em>accepted</em> connections in the pending tab, and the bug is invisible in testing because the response is a well-formed <code>200</code>. Silent filter-dropping is also the failure mode most likely to leak a wider record set than intended if a status filter is ever used as an authorization narrowing step.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Authenticate as any complete couple.</li><li><code>GET /api/v1/connect/connections?status=NotAStatus</code>.</li><li>Observed: <code>200</code> with accepted connections in the body. Expected: <code>400</code>.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix"><code>GetConnections</code> now rejects an unparseable <code>status</code> with a <code>400</code> listing the valid values, instead of dropping the filter and silently returning every connection.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>connect.spec.ts:375</code> — the status filter is scoped and validated <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Bind the parameter to the enum and let model binding reject unparseable values, or validate explicitly and return the standard <code>{code, message, errors}</code> envelope.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D06">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D06 · A malformed pagination cursor silently returns the first page again</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Messaging</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>THR-004</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Messaging/Queries/GetMessages/GetMessagesQueryHandler.cs</code></dd></div>
+          <div><dt>Type</dt><dd>API contract / pagination</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>MessageCursor.TryDecode</code> returns <code>false</code> for an undecodable cursor, and the handler simply leaves <code>beforeTicks</code>/<code>beforeId</code> null. A request for the page <em>before</em> an unparseable cursor is therefore answered with the newest page — the same items the client already holds — under a <code>200</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>THR-004 requires valid, malformed, deleted and equal-time cursors to return stable newest-first pages with no skipped or duplicated messages. A cursor the server cannot interpret is not a page boundary and must not be treated as “no boundary”.</p>
+
+        <h4>Why it matters</h4>
+        <p>An infinite-scroll client that receives a corrupted or truncated cursor — from a URL round-trip, a stale cache, or a proxy that mangles the base64 — will append messages it has already rendered and then request the same page forever. The user sees duplicated history and a scroll that never reaches the end, and because every response is <code>200</code> there is no error to surface or log.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Seed a conversation with at least three messages.</li><li><code>GET /conversations/{id}/messages?take=2</code> and record the returned item ids.</li><li><code>GET /conversations/{id}/messages?take=2&amp;before=NOT_A_CURSOR</code>.</li><li>Observed: <code>200</code> with the identical first-page ids. Expected: <code>400</code> for an uninterpretable cursor.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix"><code>GetMessagesQueryHandler</code> now distinguishes “no cursor supplied” from “cursor supplied but undecodable”. The first is page one; the second is a <code>400</code>, so an infinite-scroll client can no longer be handed page one forever.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>messaging.spec.ts:593</code> — a malformed cursor is rejected rather than silently restarting pagination <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Distinguish “no cursor supplied” from “cursor supplied but undecodable”: the first is page one, the second is a client error.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D09">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D09 · Every route shares the same document title</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Cross-cutting — Accessibility</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>ACC-008</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/index.html + frontend/src/app/router/router.tsx</code></dd></div>
+          <div><dt>Type</dt><dd>Accessibility (WCAG 2.4.2 Page Titled)</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>&lt;title&gt;Saha&lt;/title&gt;</code> is set once in <code>index.html</code> and never updated. <code>/dashboard</code>, <code>/settings</code>, <code>/profile</code>, <code>/messages</code> and the 404 page all report <code>document.title === "Saha"</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>ACC-008 requires a unique document title per route, so route changes are announced and history is navigable.</p>
+
+        <h4>Why it matters</h4>
+        <p>Screen readers announce the document title on navigation; with a single-page app and one static title, a blind user gets no confirmation that navigation happened at all. Browser history, bookmarks, open-tab lists and window switchers all show identical “Saha” entries, so a user with several tabs open cannot tell them apart. This is a WCAG 2.4.2 Level A failure — the most severe conformance tier.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in and open <code>/dashboard</code>; read <code>document.title</code> → <code>"Saha"</code>.</li><li>Navigate to <code>/settings</code>; read <code>document.title</code> → still <code>"Saha"</code>.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Added a pathless root route rendering <code>&lt;DocumentTitle /&gt;</code>, with a <code>handle.title</code> on every route. Titles now read “Settings · Saha”, “Home · Saha”, and so on. A polite live region additionally announces “Navigated to &lt;page&gt;” — prefixed so the announcement never duplicates the page's own heading text.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>security-crosscutting.spec.ts:292</code> — the document title changes between routes <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Set the title per route (a small effect in the layout keyed on the matched route, or a <code>title</code> field in the route objects). Pair it with a politely-announced route-change region to satisfy the announcement half of ACC-008.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D10">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D10 · The appearance selector signals the active theme with colour only</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Settings</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>SET-001</code> <code>ACC-003</code> <code>ACC-006</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/modules/settings/pages/SettingsPage.tsx</code></dd></div>
+          <div><dt>Type</dt><dd>Accessibility (WCAG 1.4.1, 4.1.2)</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>Light / Dark / System are plain <code>&lt;button&gt;</code> elements. The active one is styled with a gold border and background; it carries no <code>role="radio"</code>, no <code>aria-checked</code>, no <code>aria-pressed</code> and no <code>aria-current</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>SET-001 requires the current choice to be exposed <em>visually and semantically</em>; ACC-006 requires a non-colour indicator.</p>
+
+        <h4>Why it matters</h4>
+        <p>A screen-reader user hears three identical, unlabelled-state buttons and cannot tell which theme is active — nor confirm that pressing one changed anything. Users with colour-vision deficiency, and anyone in Windows forced-colors mode where the custom background is discarded, lose the only cue there is. Notably the app's own <code>RoleToggle</code> already implements this correctly with <code>role="radiogroup"</code> + <code>role="radio"</code> + <code>aria-checked</code>, so the correct pattern exists in the codebase and simply was not applied here.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in and open <code>/settings</code>.</li><li>Click <b>Dark</b>.</li><li>Inspect the button: no <code>aria-pressed</code>, <code>aria-checked</code> or <code>role</code> attribute is present; only the CSS classes change.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The three appearance options are now a <code>role="radiogroup"</code> of <code>role="radio"</code> buttons with <code>aria-checked</code>, arrow-key navigation and a roving tab stop — matching <code>RoleToggle</code>, which already had the pattern. A check icon provides the non-colour indicator ACC-006 requires.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>shell-dashboard-settings.spec.ts:224</code> — the selected appearance is exposed semantically, not only by colour <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Mirror <code>RoleToggle.tsx</code>: wrap the three options in <code>role="radiogroup"</code>, give each <code>role="radio"</code> with <code>aria-checked</code> and a roving tab stop, and add a non-colour affordance such as a check icon on the active option.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D11">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D11 · The profile tabs are not exposed as tabs to assistive technology</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Profile</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PRF-003</code> <code>PRF-023</code> <code>ACC-003</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/modules/profile/pages/ProfilePage.tsx</code></dd></div>
+          <div><dt>Type</dt><dd>Accessibility (WCAG 4.1.2)</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>“My Profile” and “&lt;Partner&gt;'s Profile” are plain <code>&lt;button&gt;</code> elements inside a styled <code>&lt;div&gt;</code>. There is no <code>role="tablist"</code>, no <code>role="tab"</code>, no <code>aria-selected</code> and no <code>aria-controls</code>; the active tab is indicated by a white background alone. <code>page.getByRole('tab')</code> resolves to zero elements.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>PRF-003 and PRF-023 require labelled tabs with correct semantics and an identifiable selected state.</p>
+
+        <h4>Why it matters</h4>
+        <p>The control is visually and behaviourally a tab set — two mutually exclusive views of one panel — but is announced as two ordinary buttons. A screen-reader user is not told that the views are alternatives, which one is showing, or that content below changed when they pressed one. Without <code>role="tablist"</code> the expected arrow-key navigation is also absent, so keyboard users must tab through both.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in and open <code>/profile</code>.</li><li>Inspect the two tab buttons — no <code>role</code> or <code>aria-selected</code> attributes are present.</li><li>Switch tabs: only the CSS classes change; nothing in the accessibility tree reflects the new state.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The profile tabs now implement the WAI-ARIA tabs pattern: <code>role="tablist"</code> / <code>role="tab"</code> with <code>aria-selected</code>, <code>aria-controls</code>, arrow-key navigation and a roving tab stop, with the panel marked <code>role="tabpanel"</code>.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>profile.spec.ts:74</code> — the profile tabs expose tab semantics and a selected state <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Apply the WAI-ARIA tabs pattern — <code>role="tablist"</code> / <code>role="tab"</code> with <code>aria-selected</code>, <code>aria-controls</code> and a roving <code>tabIndex</code>, plus <code>role="tabpanel"</code> on the content. The same pattern applies to the Connect tabs.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D12">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D12 · Messaging modals cannot be closed with Escape and never move focus into the dialog</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Messaging</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>GRP-001</code> <code>CFG-001</code> <code>ACC-005</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/modules/messages/components/MessagingDialogs.tsx — Modal</code></dd></div>
+          <div><dt>Type</dt><dd>Accessibility (WCAG 2.1.2, 2.4.3)</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>The shared <code>Modal</code> declares <code>role="dialog"</code> and <code>aria-modal="true"</code> but implements none of the behaviour those attributes promise: there is no <code>keydown</code> handler for Escape, no initial focus move, no focus trap, and no focus restoration on close. After opening “New group chat”, <code>document.activeElement</code> is still the trigger button outside the dialog, and pressing Escape leaves the dialog open.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>GRP-001 requires dialog semantics with initial focus, a focus trap, and Escape / Close / backdrop / Cancel dismissal, returning focus to the control that opened it.</p>
+
+        <h4>Why it matters</h4>
+        <p><code>aria-modal="true"</code> tells a screen reader that everything outside the dialog is inert, but focus is still outside it and can Tab freely into the page behind — so the user is navigating content their screen reader has been told does not exist. Escape, the universally expected dismissal key, does nothing, leaving keyboard-only users to hunt for the Close button. On close, focus is lost to the document body rather than returned to the trigger, so the user's place in the page is gone.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in as a couple with at least one accepted connection and open <code>/messages</code>.</li><li>Press <b>New group chat</b>. Inspect <code>document.activeElement</code> — it is still the trigger, outside the dialog.</li><li>Press <kbd>Escape</kbd>. The dialog remains open.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The shared <code>Modal</code> now delivers what <code>aria-modal</code> promises: focus moves to the first control on open, Tab and Shift+Tab wrap inside the dialog, Escape closes it, and focus returns to the trigger on close. One fix covers both the New-group and Conversation-settings dialogs.</div>
+        
+        
+        
+
+        <h4>Verified by 2 regression tests</h4>
+        <ul class="tlist"><li><code>messaging.spec.ts:163</code> — the group dialog closes on Escape and restores focus <span class="pill p-pass">passed</span></li><li><code>messaging.spec.ts:177</code> — focus moves into the dialog when it opens <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Both the New-group and Conversation-settings dialogs use this <code>Modal</code>, so one fix covers both. The project already depends on <code>@radix-ui/react-dialog</code>, which provides focus trapping, Escape handling and focus restoration out of the box.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D13">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D13 · The reset-password visibility toggle is an unlabelled icon button</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Authentication — Password Recovery</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PWR-009</code> <code>ACC-003</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/modules/auth/pages/ResetPasswordPage.tsx</code></dd></div>
+          <div><dt>Type</dt><dd>Accessibility (WCAG 4.1.2)</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>The show/hide control on <code>/reset-password</code> renders an <code>Eye</code>/<code>EyeOff</code> icon inside a <code>&lt;button&gt;</code> with no text, no <code>aria-label</code> and no <code>aria-pressed</code>. Its accessible name is the empty string. <code>LoginPage.tsx</code> and <code>RegisterStepOneKey.tsx</code> both label the identical control <code>aria-label="Show password" / "Hide password"</code> with an <code>aria-pressed</code> state.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>PWR-009 requires the toggle to work with an accessible name; ACC-003 requires every icon-only button to have one.</p>
+
+        <h4>Why it matters</h4>
+        <p>A screen reader announces only “button”, giving no indication of what it does or whether the password is currently visible. On the reset screen specifically this matters more than elsewhere: the user is typing a password they cannot see into a form they reached because they already could not get in, and reveal is the one affordance that lets them verify it. The inconsistency with the two other password screens also means a user who learned the control on login will not find it here.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Open <code>/reset-password</code>.</li><li>Query the button by accessible name: <code>getByRole('button', { name: /Show password|Hide password/i })</code> → 0 matches.</li><li>The same query on <code>/login</code> → 1 match.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Added <code>aria-label</code> (“Show password” / “Hide password”) and <code>aria-pressed</code> to the reset-page toggle, matching the login and registration screens.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>auth-recovery.spec.ts:170</code> — the reset password visibility toggle has an accessible name <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> One-line fix mirroring <code>LoginPage.tsx</code>: add <code>aria-label={showPassword ? 'Hide password' : 'Show password'}</code> and <code>aria-pressed={showPassword}</code>. Note the single toggle drives both password fields, which is acceptable — only the name and state are missing.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D16">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D16 · The &quot;Read Only&quot; partner-view banner sits above controls that still write state</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Profile / App shell</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>PRF-022</code> <code>NAV-008</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/shared/stores/partner-view.store.ts + frontend/src/shared/components/layout/PartnerViewBanner.tsx</code></dd></div>
+          <div><dt>Type</dt><dd>Product semantics / security UX</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>Entering “View as partner” shows a persistent banner reading “Viewing as &lt;name&gt; — Read Only Mode” across every in-app route. Only the Profile edit controls are actually suppressed. Navigating to Settings with the banner still displayed and clicking a theme option changes and persists the theme.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>PRF-022 and NAV-008 require every mutating control to be suppressed or server-protected while the banner is active, and require that the banner never implies impersonation it does not perform.</p>
+
+        <h4>Why it matters</h4>
+        <p>The banner makes a blanket promise the app does not keep. A user who believes they are in a read-only view may act more freely than they otherwise would, and any change they make is written against <em>their own</em> identity — not the partner's — because partner view is presentation state, not server-side impersonation. The mismatch is a correctness problem now (settings persist unexpectedly) and a growing one later: every new mutating feature inherits the false promise unless it explicitly opts into the mode.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in, open <code>/profile</code>, switch to the partner tab and press <b>View as partner</b>.</li><li>Using in-app navigation (the sidebar, not a page reload — the mode is deliberately non-persisted), open <b>Settings</b>. The banner is still shown.</li><li>Click a different appearance option. Observed: the theme changes and persists. Expected: the control is unavailable, or the banner does not claim read-only.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Per the product decision the banner was rescoped rather than the enforcement widened: it now reads “Viewing &lt;name&gt;’s profile”, describing what the mode actually is. Partner view remains local presentation state, and the banner no longer promises a read-only session the app does not enforce.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>profile.spec.ts:337</code> — the banner describes the mode without claiming a read-only guarantee <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> This needs a product decision before a code change, which is why it is reported rather than patched. Either scope the banner copy honestly (e.g. “Previewing &lt;name&gt;'s profile”), or make the mode a real read-only gate that feature pages consult. The catalogue already flags the ambiguity as an open risk.</div>
+      </article>
+      <article class="defect sev-medium" id="SAHA-D14">
+        <header>
+          <span class="sev">Medium</span>
+          <h3>SAHA-D14 · The System theme does not follow live OS appearance changes</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Settings</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>SET-004</code></dd></div>
+          <div><dt>Component</dt><dd><code>frontend/src/core/stores/theme.store.ts</code></dd></div>
+          <div><dt>Type</dt><dd>Functional / integration</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>applyTheme('system')</code> reads <code>window.matchMedia('(prefers-color-scheme: dark)').matches</code> once, at the moment the theme is set and at store initialisation. No <code>change</code> listener is registered on the media query, so once <code>system</code> is selected the resolved theme is frozen until the next reload or explicit theme change.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>SET-004 requires the System option to follow the OS preference <em>at load and on live preference changes</em>, while the stored choice remains <code>system</code>.</p>
+
+        <h4>Why it matters</h4>
+        <p>“System” is understood by users as “follow my device”, and the common case is exactly the one that breaks: macOS, Windows and iOS all switch appearance automatically at sunset. A user who picks System in the morning stays on the light theme all evening, which defeats the point of the setting and leaves them with a bright screen in the dark. The setting looks broken while the stored preference is in fact correct.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Sign in and open <code>/settings</code>; select <b>System</b>.</li><li>Change the OS/browser appearance to dark (in Playwright: <code>page.emulateMedia({ colorScheme: 'dark' })</code>).</li><li>Observed: <code>&lt;html&gt;</code> keeps its previous class — the <code>dark</code> class is not applied until a reload. Expected: the theme follows immediately.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">The theme store now subscribes to <code>matchMedia('(prefers-color-scheme: dark)')</code> and re-applies while the stored choice is <code>system</code>, so the theme follows the OS at sunset rather than freezing until reload. Also added <code>onRehydrateStorage</code> so the persisted theme is applied after rehydration rather than only the module-load default.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>shell-dashboard-settings.spec.ts:265</code> — System follows the emulated OS preference <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Subscribe to the media query (<code>mql.addEventListener('change', …)</code>) while the stored theme is <code>system</code>, and detach when the user picks an explicit theme. Separately worth confirming with product: the store's default is <code>'light'</code> rather than <code>'system'</code>, so a brand-new user does not follow their OS until they opt in.</div>
+      </article>
+      <article class="defect sev-low" id="SAHA-D07">
+        <header>
+          <span class="sev">Low</span>
+          <h3>SAHA-D07 · Validation errors reflect raw user input back in the message string</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Cross-cutting — Security</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>REA-004</code> <code>SEC-004</code> <code>SEC-006</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Domain/ValueObjects/ReactionEmoji.cs</code></dd></div>
+          <div><dt>Type</dt><dd>Error hygiene</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p><code>ReactionEmoji.Create</code> builds its message as <code>$"'{value}' is not a supported reaction."</code>. Posting <code>{"emoji": "&lt;svg/onload=alert(1)&gt;"}</code> returns that payload embedded verbatim in <code>message</code> and in <code>errors.ReactionEmoji</code>.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>SEC-004 requires error responses to be sanitised and to contain no attacker-controlled content beyond what is necessary to identify the field at fault.</p>
+
+        <h4>Why it matters</h4>
+        <p>The API itself is safe — the response is JSON-encoded and the current React client escapes on render — so this is not exploitable as shipped. It is a latent sink: the moment any consumer renders an API error message as HTML (a toast with <code>dangerouslySetInnerHTML</code>, an email, an admin log viewer, a native webview), the attacker's payload arrives pre-delivered inside a trusted error string. Naming the rejected value also adds nothing the caller does not already know, since the caller sent it.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Authenticate and send any message to obtain a message id.</li><li><code>PUT /conversations/{cid}/messages/{mid}/reaction</code> with <code>{ "emoji": "&lt;svg/onload=alert(1)&gt;" }</code>.</li><li>Observed: the response body contains <code>'&lt;svg/onload=alert(1)&gt;' is not a supported reaction.</code></li></ol>
+
+        <h4>Fix applied</h4><div class="fix"><code>ReactionEmoji.Create</code> now states the constraint — “Reaction must be one of: fire, heart, laugh, sad, thumbsup, wow.” — instead of interpolating the caller's raw input into the error string.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>messaging.spec.ts:541</code> — a rejected reaction does not echo the raw payload back <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> State the constraint rather than the input — e.g. “Reaction must be one of: heart, laugh, wow, sad, thumbsup, fire.” Worth a sweep for the same <code>$"'{value}'…"</code> pattern in the other value objects.</div>
+      </article>
+      <article class="defect sev-low" id="SAHA-D08">
+        <header>
+          <span class="sev">Low</span>
+          <h3>SAHA-D08 · Model-binding validation returns framework ProblemDetails instead of the API's error envelope</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Cross-cutting — Security</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>SEC-004</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.API/Controllers/TelemetryController.cs (ASP.NET automatic model-state validation)</code></dd></div>
+          <div><dt>Type</dt><dd>API contract</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>Application-level failures return <code>{ "code", "message", "errors" }</code>. A request that fails ASP.NET model binding instead returns RFC-9110 ProblemDetails: <code>{ "type", "title", "status", "errors", "traceId" }</code> — with no <code>code</code> field.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>SEC-004 requires a single stable, sanitised error contract across every status code.</p>
+
+        <h4>Why it matters</h4>
+        <p>The client's <code>extractApiError</code> reads <code>code</code>/<code>message</code>. For a ProblemDetails body both are absent, so the user gets a generic fallback instead of the actual validation reason, and error-rate dashboards keyed on <code>code</code> under-count these failures. The ProblemDetails body also emits a <code>traceId</code> that the application envelope deliberately withholds from clients.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li><code>POST /api/v1/telemetry/events</code> with <code>{ "events": [ { "name": "probe" } ] }</code> (omitting the required <code>sessionId</code>).</li><li>Observed: <code>400</code> with a ProblemDetails body containing <code>type</code>/<code>title</code>/<code>traceId</code> and no <code>code</code>.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Configured <code>ApiBehaviorOptions.InvalidModelStateResponseFactory</code> to emit the same <code>{code, message, errors}</code> envelope the exception middleware produces. This applies to every model-bound endpoint, not only telemetry, and drops the ProblemDetails <code>traceId</code> that was leaking to clients.</div>
+        
+        
+        
+
+        <h4>Verified by 1 regression test</h4>
+        <ul class="tlist"><li><code>security-crosscutting.spec.ts:75</code> — a validation failure uses the same envelope as the rest of the API <span class="pill p-pass">passed</span></li></ul>
+
+        
+        <div class="note"><b>Note for the developer:</b> Configure <code>ApiBehaviorOptions.InvalidModelStateResponseFactory</code> to emit the same envelope the exception middleware produces. This affects every endpoint with model-bound required fields, not only telemetry.</div>
+      </article>
+      <article class="defect sev-low" id="SAHA-D17">
+        <header>
+          <span class="sev">Low</span>
+          <h3>SAHA-D17 · Concurrent connection writes were unguarded by any database constraint (insert race fixed; accept/reject race still open)</h3>
+          <span class="status s-fixed">✓ Fixed &amp; verified</span>
+        </header>
+        <div class="dmeta">
+          <div><dt>Module</dt><dd>Connect</dd></div>
+          <div><dt>Catalogue cases</dt><dd><code>CON-016</code> <code>CON-018</code> <code>REL-004</code></dd></div>
+          <div><dt>Component</dt><dd><code>backend/src/Saha.Application/Features/Connect/ — SendConnectionRequest handler + the unique pair index</code></dd></div>
+          <div><dt>Type</dt><dd>Concurrency — unconfirmed</dd></div>
+        </div>
+
+        <h4>The defect (before the fix)</h4>
+        <p>Firing two identical <code>POST /connect/request</code> calls in parallel is expected to produce exactly one <code>201</code> and one <code>409</code>. The assertion holds <strong>5 out of 5 times when the test runs alone</strong>, but failed during 2 of 3 full-suite runs. The outcome is therefore load-dependent rather than deterministic.</p>
+
+        <h4>What the catalogue requires</h4>
+        <p>CON-018 requires at most one canonical relation per pair, with the losing request receiving a clean conflict rather than a second row or a 500 from the unique index.</p>
+
+        <h4>Why it matters</h4>
+        <p>Reported at low severity precisely because it is <strong>not confirmed</strong>. If the duplicate row is real, the pair-uniqueness invariant Connect depends on can be broken by a double-click or a client retry, which would then surface as duplicate cards and an ambiguous accept target. If instead the losing request is returning a 500 from the database constraint rather than a handled 409, the invariant holds but the error contract does not.</p>
+
+        <h4>Steps to reproduce</h4>
+        <ol class="repro"><li>Seed two complete couples.</li><li>Issue two <code>POST /api/v1/connect/request</code> calls for the same pair in parallel from one authenticated context.</li><li>Run under concurrent load (the full regression suite) rather than in isolation — the failure does not reproduce on an idle backend.</li></ol>
+
+        <h4>Fix applied</h4><div class="fix">Made the <code>(CoupleAId, CoupleBId)</code> index <strong>unique</strong> — it previously was not, so the handler's check-then-insert had no database-level guard at all — and mapped the constraint violation in <code>ConnectionRepository.AddAsync</code> back to the same <code>409</code> the pre-check returns. Migration <code>UniqueCoupleConnectionPair</code> is index-only and reversible. Pair ordering was deliberately left alone: <code>CoupleBId</code> identifies the recipient in the accept/reject authorization checks, so normalising it would have rewritten security logic to fix a concurrency bug. <b>Scope:</b> this fixes the <em>insert</em> race only — see the note below for the accept/reject update race that remains.</div>
+        <h4>Evidence at the time of reporting</h4><p>This entry is deliberately included as an <em>unconfirmed</em> finding rather than omitted, because an intermittent failure against a uniqueness invariant is worth a developer's eye even when the QA run cannot pin it down. <strong>Corroborating signal:</strong> the only two tests in the entire 237-test suite that needed a retry are the two Connect concurrency tests — <code>CON-018</code> (racing duplicate requests) and <code>CON-025</code> (racing accept vs reject). Both exercise concurrent writes to the same connection row, and no other module shows retry behaviour at all. That clustering is more consistent with a real serialisation weakness in the Connect write path than with generic test flake. The local backend is SQLite; the production target is Azure SQL, whose locking behaviour differs, so this needs re-testing against the real engine before it is dismissed.</p>
+        
+        
+
+        <h4>Verified by 2 regression tests</h4>
+        <ul class="tlist"><li><code>connect.spec.ts:251</code> — two concurrent identical requests create exactly one connection <span class="pill p-pass">passed</span></li><li><code>connect.spec.ts:353</code> — racing accept and reject settle on exactly one terminal state <span class="pill p-flaky">flaky</span></li></ul>
+
+        <div class="note warnnote"><b>One linked test needed a retry.</b> It passed, but the timing sensitivity is worth a look — see the evidence note.</div>
+        <div class="note"><b>Note for the developer:</b> <b>Partially resolved — one related race remains open.</b> The insert path (<code>CON-018</code>) is now guarded by a real unique constraint and has been stable since. But <code>CON-025</code> — two clients racing <em>accept</em> against <em>reject</em> on the same pending request — still needs a retry intermittently, and it is now the only Connect test that does. That is an <em>update</em> race on an existing row, which a uniqueness constraint cannot address; it needs optimistic concurrency (a row version / <code>xmin</code> check) or an explicit transaction around the read-modify-write in the accept and reject handlers. Deliberately left open rather than patched blind: the accept/reject handlers carry the authorization checks, and guessing at a concurrency fix there is how a security regression gets introduced.</div>
+      </article>
+
+  <h2>Scope, environment and exclusions</h2>
+  <div class="module">
+    <h4>Environment under test</h4>
+    <ul class="tlist">
+      <li>Backend: <code>ASPNETCORE_ENVIRONMENT=IntegrationTest</code> on <code>https://localhost:7001</code>, SQLite store, seeded via <code>npm run seed:e2e</code> + <code>seed:e2e:connect</code>.</li>
+      <li>Frontend: Vite dev server on <code>http://localhost:5173</code> with <code>VITE_REGISTRATION_ENABLED=true</code>.</li>
+      <li>Browser: Desktop Chromium only. Timezone pinned to <code>Asia/Kolkata</code> (+05:30) so UTC-serialisation defects surface deterministically.</li>
+      <li>Execution: single worker, no retries — every result below is a first-attempt result, not a best-of-N.</li>
+    </ul>
+
+    <h4>Catalogue areas deliberately not executed</h4>
+    <p>These are excluded because the environment cannot support them, not because they passed.
+       They remain valid manual coverage and are listed so nothing is mistaken for verified.</p>
+    <table class="ttable">
+      <thead><tr><th>Cases</th><th>Area</th><th>What it needs</th></tr></thead>
+      <tbody>
+        <tr><td><code>MED-001…007</code> <code>PRF-014…017</code> <code>SEC-012</code></td><td>Message media and profile avatars</td><td>Blob-backed storage (Azurite or a real storage account)</td></tr>
+        <tr><td><code>PWR-010</code> <code>PWR-012</code> <code>PWR-014</code></td><td>The successful password-reset leg</td><td>A readable test mailbox or a fixture exposing the issued code</td></tr>
+        <tr><td><code>REG-001</code></td><td>Registration feature flag disabled</td><td>A second Vite build without <code>VITE_REGISTRATION_ENABLED</code></td></tr>
+        <tr><td><code>SEC-010</code> <code>SEC-011</code> <code>DEP-001</code></td><td>TLS/HSTS, real rate limits, deployment config</td><td>A deployed HTTPS environment and the production config matrix</td></tr>
+        <tr><td><code>SEC-015</code> <code>TEL-006</code> <code>TEL-007</code></td><td>Audit records and OpenTelemetry exporters</td><td>Database inspection plus Loki/Grafana or test exporters</td></tr>
+        <tr><td><code>BRW-001</code> <code>BRW-002</code></td><td>Firefox, WebKit, real mobile devices</td><td>Additional Playwright projects and a device lab</td></tr>
+        <tr><td><code>ACC-004</code> <code>ACC-007</code> (partly)</td><td>Screen-reader announcements, captions, forced colors</td><td>Manual VoiceOver/NVDA review — not automatable</td></tr>
+      </tbody>
+    </table>
+
+    <h4>How to read a failure</h4>
+    <p>Every test asserts the behaviour the catalogue <em>specifies</em>, not the behaviour the code
+       currently has. A red row is therefore a reported defect, not a broken test — fixing the
+       product turns it green. Tests were re-verified in isolation before being reported, so
+       locator and fixture faults in the harness have already been eliminated.</p>
+  </div>
+
+  <h2>Full execution detail</h2>
+  <p class="sub">Every executed test, grouped by module and tagged with the catalogue case IDs it covers. Expand a failing row to see the assertion output and the screenshot captured at the moment of failure.</p>
+  
+    <section class="module" id="mod-auth-login-session.spec.ts">
+      <div class="mhead">
+        <h3>Authentication — Login, Session &amp; Logout</h3>
+        <div class="mnums">
+          <span class="pill p-pass">25 passed</span>
+          
+          
+          
+          <span class="muted">25 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/authentication/login-session-and-recovery.md</code> · Spec: <code>tests/e2e/regression/auth-login-session.spec.ts</code> · Prefixes: <code>AUTH</code> <code>SES</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-001</code></td>
+          <td class="c-title">
+            either partner signs in with the shared password and gets their own identity
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-002</code></td>
+          <td class="c-title">
+            empty username/password are blocked client-side with no API call
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">876ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-002</code></td>
+          <td class="c-title">
+            username over 30 chars is rejected by the client and the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">931ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-003</code></td>
+          <td class="c-title">
+            wrong password and unknown username are indistinguishable (no enumeration)
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">277ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-004</code></td>
+          <td class="c-title">
+            username lookup is case-insensitive
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">272ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-004</code></td>
+          <td class="c-title">
+            username lookup tolerates surrounding whitespace
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">271ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-004</code></td>
+          <td class="c-title">
+            injection-shaped usernames are treated as data, not query structure
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">11ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-005</code></td>
+          <td class="c-title">
+            the password visibility toggle flips type and exposes pressed state
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">880ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-006</code></td>
+          <td class="c-title">
+            a slow login disables the submit button so it cannot be double-submitted
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-006</code></td>
+          <td class="c-title">
+            a 500 from login leaves the form usable and shows a safe message
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">896ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-007</code></td>
+          <td class="c-title">
+            login footer links reach registration and invitation, and render a real middot
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">961ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-008</code></td>
+          <td class="c-title">
+            an AwaitingPartner registrant authenticates only as far as the waiting threshold
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>AUTH-010</code></td>
+          <td class="c-title">
+            no credential value is ever placed in a telemetry payload
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">5.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-001</code> <code>SEC-001</code></td>
+          <td class="c-title">
+            no access or refresh token is written to localStorage
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-002</code></td>
+          <td class="c-title">
+            GET auth/session returns the correct identity and rejects anonymous callers
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">281ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-003</code></td>
+          <td class="c-title">
+            a 401 on a protected call triggers exactly one silent refresh and retries
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-005</code> <code>SES-007</code></td>
+          <td class="c-title">
+            the refresh cookie is HttpOnly + SameSite and invisible to JavaScript
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-006</code></td>
+          <td class="c-title">
+            a rotated refresh token cannot be replayed
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-008</code></td>
+          <td class="c-title">
+            a failed refresh clears auth and lands on login without a redirect loop
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-010</code></td>
+          <td class="c-title">
+            every protected route redirects an anonymous visitor to login
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-011</code></td>
+          <td class="c-title">
+            an authenticated user on a guest route is replaced to the dashboard
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-012</code></td>
+          <td class="c-title">
+            sign out revokes the session, clears the cache and blocks Back
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-013</code></td>
+          <td class="c-title">
+            a failing logout still clears local state and routes to login
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SES-014</code></td>
+          <td class="c-title">
+            a double-clicked sign out is idempotent and raises no unhandled error
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-014</code></td>
+          <td class="c-title">
+            after switching accounts no data from the previous couple remains
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.9s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-auth-recovery.spec.ts">
+      <div class="mhead">
+        <h3>Authentication — Password Recovery</h3>
+        <div class="mnums">
+          <span class="pill p-pass">13 passed</span>
+          
+          
+          
+          <span class="muted">13 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/authentication/login-session-and-recovery.md</code> · Spec: <code>tests/e2e/regression/auth-recovery.spec.ts</code> · Prefixes: <code>PWR</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>PWR-001</code></td>
+          <td class="c-title">
+            a valid identifier moves the UI to the &quot;check your email&quot; state
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-002</code></td>
+          <td class="c-title">
+            an empty identifier is blocked before any request is sent
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">839ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-003</code></td>
+          <td class="c-title">
+            known and unknown identifiers are indistinguishable at the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">352ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-007</code></td>
+          <td class="c-title">
+            the code must be exactly six ASCII digits
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">9ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-008</code></td>
+          <td class="c-title">
+            a mismatched confirmation is rejected
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-008</code> <code>REG-016</code></td>
+          <td class="c-title">
+            a password accepted at registration is also accepted at reset
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">320ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-008</code> <code>REG-016</code></td>
+          <td class="c-title">
+            reset enforces the agreed 8-character minimum
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">322ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-008</code> <code>REG-016</code></td>
+          <td class="c-title">
+            reset requires the same character classes as registration
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">6ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-008</code> <code>REG-017</code></td>
+          <td class="c-title">
+            reset rejects passwords beyond the 72-byte BCrypt ceiling
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-011</code></td>
+          <td class="c-title">
+            wrong, unknown-account and malformed codes share safe failure semantics
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">643ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-009</code> <code>ACC-003</code></td>
+          <td class="c-title">
+            the reset password visibility toggle has an accessible name
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">556ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-009</code></td>
+          <td class="c-title">
+            the visibility toggle reveals both password fields without discarding them
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">929ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PWR-013</code></td>
+          <td class="c-title">
+            a 500 from the reset API keeps the identifier and allows retry
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.5s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-auth-registration.spec.ts">
+      <div class="mhead">
+        <h3>Registration, Invitations &amp; Couple Lifecycle</h3>
+        <div class="mnums">
+          <span class="pill p-pass">34 passed</span>
+          
+          
+          
+          <span class="muted">34 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/authentication/registration-and-invitations.md</code> · Spec: <code>tests/e2e/regression/auth-registration.spec.ts</code> · Prefixes: <code>REG</code> <code>INV</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>REG-014</code></td>
+          <td class="c-title">
+            an empty step 1 shows every required error and sends no request
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">849ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-003</code></td>
+          <td class="c-title">
+            a name over 100 characters is rejected by client and server
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">927ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-005</code></td>
+          <td class="c-title">
+            malformed usernames are refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">13ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-004</code></td>
+          <td class="c-title">
+            3- and 30-character usernames are both accepted
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">276ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-006</code></td>
+          <td class="c-title">
+            a free username reports &quot;Available&quot; after the debounce
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-006</code></td>
+          <td class="c-title">
+            a taken username blocks the step with a specific message
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">905ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-006</code></td>
+          <td class="c-title">
+            no availability request is sent for a syntactically invalid username
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-009</code></td>
+          <td class="c-title">
+            a date of birth under 16 or in the future is refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">4ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-012</code></td>
+          <td class="c-title">
+            malformed and oversized emails are refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">535ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-013</code></td>
+          <td class="c-title">
+            phone numbers outside the E.164 shape are refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">8ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-010</code> <code>REG-011</code></td>
+          <td class="c-title">
+            the role selector is a keyboard-operable radiogroup
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">885ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-015</code></td>
+          <td class="c-title">
+            Back preserves every step-1 value
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">994ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-017</code></td>
+          <td class="c-title">
+            a 7-character password is rejected and 8 is accepted
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-016</code></td>
+          <td class="c-title">
+            every character class is required at registration
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-017</code></td>
+          <td class="c-title">
+            a password over 72 UTF-8 bytes is rejected even when under 72 characters
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">976ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-018</code></td>
+          <td class="c-title">
+            a mismatched confirmation blocks the step
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-019</code></td>
+          <td class="c-title">
+            the step-2 toggle reveals the password but keeps the confirmation masked
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">958ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-022</code></td>
+          <td class="c-title">
+            the API refuses malformed TogetherIDs
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">13ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-021</code></td>
+          <td class="c-title">
+            the TogetherID field uppercases what the user types
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">979ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-024</code></td>
+          <td class="c-title">
+            a full wizard run creates exactly one AwaitingPartner couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-025</code></td>
+          <td class="c-title">
+            a duplicate TogetherID and a duplicate username are both refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">272ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-025</code></td>
+          <td class="c-title">
+            two concurrent registrations of the same TogetherID create only one couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">300ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REG-026</code></td>
+          <td class="c-title">
+            leaving the wizard clears the plaintext password from storage
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-001</code></td>
+          <td class="c-title">
+            the awaiting registrant lands on the invite placeholder and can reach waiting
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-002</code></td>
+          <td class="c-title">
+            a valid invitation is created for the authenticated awaiting couple only
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">537ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-002</code></td>
+          <td class="c-title">
+            an anonymous caller cannot create an invitation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-003</code></td>
+          <td class="c-title">
+            invalid invitee name/email are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">537ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-004</code></td>
+          <td class="c-title">
+            a Complete couple cannot issue another invitation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">540ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-005</code></td>
+          <td class="c-title">
+            the accept-invitation route renders without leaking the token into the page
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">519ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-007</code></td>
+          <td class="c-title">
+            missing, unknown and reused invitation tokens are all refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">279ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-008</code></td>
+          <td class="c-title">
+            the invitee cannot reuse the registrant’s username
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">271ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-006</code></td>
+          <td class="c-title">
+            acceptance assigns the opposite role and completes the home
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">808ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>INV-009</code></td>
+          <td class="c-title">
+            the waiting page redirects to the dashboard once the partner accepts
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">16.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-017</code></td>
+          <td class="c-title">
+            an AwaitingPartner couple cannot send a connection request
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">521ms</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-shell-dashboard-settings.spec.ts">
+      <div class="mhead">
+        <h3>App Shell, Dashboard, Modules &amp; Settings</h3>
+        <div class="mnums">
+          <span class="pill p-pass">26 passed</span>
+          
+          <span class="pill p-flaky">1 flaky</span>
+          
+          <span class="muted">27 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/shell/dashboard-navigation-settings.md</code> · Spec: <code>tests/e2e/regression/shell-dashboard-settings.spec.ts</code> · Prefixes: <code>NAV</code> <code>DASH</code> <code>MOD</code> <code>SET</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>NAV-001</code></td>
+          <td class="c-title">
+            the root path replace-redirects an authenticated user to the dashboard
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-002</code></td>
+          <td class="c-title">
+            every sidebar destination is present and routes correctly
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-003</code></td>
+          <td class="c-title">
+            exactly one sidebar item is marked current for the active route
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-003</code></td>
+          <td class="c-title">
+            the active item survives a direct URL load and a refresh
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-004</code></td>
+          <td class="c-title">
+            the mobile drawer opens, closes and is dismissible from the overlay
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-005</code></td>
+          <td class="c-title">
+            the top-bar theme toggle flips the theme and persists it across a reload
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-006</code></td>
+          <td class="c-title">
+            the top-bar avatar links to the profile and shows the signed-in username
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-009</code></td>
+          <td class="c-title">
+            an unknown route shows the 404 page with recovery navigation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-009</code></td>
+          <td class="c-title">
+            an unknown route while signed out discloses no couple data
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">523ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>NAV-010</code></td>
+          <td class="c-title">
+            a failing profile query does not strand navigation or blank the shell
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DASH-001</code></td>
+          <td class="c-title">
+            the dashboard greets the signed-in partner by name
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DASH-002</code></td>
+          <td class="c-title">
+            the dashboard shows the couple’s own TogetherID and no other
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DASH-003</code></td>
+          <td class="c-title">
+            the couple card shows both partners regardless of who signed in
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DASH-004</code></td>
+          <td class="c-title">
+            all six module cards render and each navigates by keyboard
+            
+          </td>
+          <td class="c-status"><span class="pill p-flaky">flaky</span><div class="muted" style="font-size:11px;margin-top:3px">passed on retry 1</div></td>
+          <td class="c-dur">15.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DASH-005</code></td>
+          <td class="c-title">
+            a failed session/profile load never renders another couple’s data
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MOD-001</code></td>
+          <td class="c-title">
+            Finance renders a non-interactive placeholder
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MOD-002</code></td>
+          <td class="c-title">
+            Memories renders a non-interactive placeholder
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MOD-003</code></td>
+          <td class="c-title">
+            Goals renders a non-interactive placeholder
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MOD-004</code></td>
+          <td class="c-title">
+            Calendar renders a non-interactive placeholder
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MOD-005</code></td>
+          <td class="c-title">
+            placeholder modules honour the route guard and survive a refresh
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-001</code></td>
+          <td class="c-title">
+            all three appearance options are offered
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-001</code> <code>ACC-003</code> <code>ACC-006</code></td>
+          <td class="c-title">
+            the selected appearance is exposed semantically, not only by colour
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-003</code></td>
+          <td class="c-title">
+            Dark applies immediately and persists across a reload
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-002</code></td>
+          <td class="c-title">
+            Light applies immediately and persists across a route change
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-004</code></td>
+          <td class="c-title">
+            System follows the emulated OS preference
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-005</code></td>
+          <td class="c-title">
+            the top-bar toggle and the settings selector stay in sync
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SET-007</code> <code>SET-008</code></td>
+          <td class="c-title">
+            the stub cards say &quot;Coming soon&quot; and offer no deceptive controls
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-profile.spec.ts">
+      <div class="mhead">
+        <h3>Profile, Avatar &amp; Partner View</h3>
+        <div class="mnums">
+          <span class="pill p-pass">22 passed</span>
+          
+          
+          
+          <span class="muted">22 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/profile/profile-and-partner-view.md</code> · Spec: <code>tests/e2e/regression/profile.spec.ts</code> · Prefixes: <code>PRF</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>PRF-001</code></td>
+          <td class="c-title">
+            My Profile shows the signed-in partner’s own record
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-002</code></td>
+          <td class="c-title">
+            the partner tab is read-only — no Edit and no photo control
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-003</code> <code>ACC-003</code></td>
+          <td class="c-title">
+            the profile tabs expose tab semantics and a selected state
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-004</code></td>
+          <td class="c-title">
+            a 500 on the profile query renders a recoverable state, not a blank page
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-005</code></td>
+          <td class="c-title">
+            Edit opens a prepopulated form
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-010</code></td>
+          <td class="c-title">
+            a valid name change persists across a reload
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-012</code></td>
+          <td class="c-title">
+            Cancel discards the pending edits
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-006</code></td>
+          <td class="c-title">
+            an empty and an over-long name are refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">805ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-006</code></td>
+          <td class="c-title">
+            a whitespace-only name is refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">537ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-007</code></td>
+          <td class="c-title">
+            a future and an under-16 date of birth are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">803ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-008</code></td>
+          <td class="c-title">
+            malformed and over-long emails are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-008</code></td>
+          <td class="c-title">
+            a partner cannot take an email that already belongs to another account
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">803ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-009</code></td>
+          <td class="c-title">
+            malformed phone numbers are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-006</code> <code>SEC-006</code></td>
+          <td class="c-title">
+            a script-shaped name is stored and rendered as literal text
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-011</code></td>
+          <td class="c-title">
+            a 500 on save keeps the user’s edits on screen for retry
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-013</code></td>
+          <td class="c-title">
+            the update payload cannot change identity fields
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-013</code> <code>SEC-003</code></td>
+          <td class="c-title">
+            profile endpoints reject anonymous callers
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-002</code></td>
+          <td class="c-title">
+            the partner endpoint returns only the caller’s own partner
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">799ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-019</code> <code>PRF-021</code></td>
+          <td class="c-title">
+            partner view shows a banner naming the partner and can be exited
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-020</code> <code>NAV-007</code></td>
+          <td class="c-title">
+            the partner-view banner persists across in-app navigation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-020</code></td>
+          <td class="c-title">
+            a full reload clears partner view (it is non-persisted state)
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>PRF-022</code> <code>NAV-008</code></td>
+          <td class="c-title">
+            the banner describes the mode without claiming a read-only guarantee
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.3s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-connect.spec.ts">
+      <div class="mhead">
+        <h3>Couple Discovery &amp; Connections</h3>
+        <div class="mnums">
+          <span class="pill p-pass">28 passed</span>
+          
+          <span class="pill p-flaky">1 flaky</span>
+          
+          <span class="muted">29 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/connect/connections.md</code> · Spec: <code>tests/e2e/regression/connect.spec.ts</code> · Prefixes: <code>CON</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>CON-001</code></td>
+          <td class="c-title">
+            the header shows the couple’s own TogetherID as read-only text
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-002</code></td>
+          <td class="c-title">
+            the three tabs switch and exactly one is active at a time
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-004</code></td>
+          <td class="c-title">
+            a couple with no connections sees an empty state with a Find Couples CTA
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-005</code></td>
+          <td class="c-title">
+            the connected list contains only accepted couples
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-007</code></td>
+          <td class="c-title">
+            a one-character query shows the hint and sends no request
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-007</code></td>
+          <td class="c-title">
+            the search input uppercases what the user types
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-008</code></td>
+          <td class="c-title">
+            an exact and a partial TogetherID both find the couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-009</code> <code>SEC-006</code></td>
+          <td class="c-title">
+            an unmatched query echoes the search term escaped
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-011</code></td>
+          <td class="c-title">
+            search never returns the searcher’s own couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">533ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-011</code></td>
+          <td class="c-title">
+            search results expose no sensitive fields
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">798ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-011</code></td>
+          <td class="c-title">
+            an AwaitingPartner couple is not discoverable through search
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">789ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-010</code></td>
+          <td class="c-title">
+            injection-shaped queries are handled as data
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">535ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-027</code></td>
+          <td class="c-title">
+            search and connections reject anonymous callers
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-014</code></td>
+          <td class="c-title">
+            a request appears as pending for both couples
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-015</code></td>
+          <td class="c-title">
+            a couple cannot connect to itself
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">532ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-016</code></td>
+          <td class="c-title">
+            duplicate and reverse requests are refused without creating a second row
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-017</code></td>
+          <td class="c-title">
+            an unknown target TogetherID is refused without enumerating
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">529ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-018</code></td>
+          <td class="c-title">
+            two concurrent identical requests create exactly one connection
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">951ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-021</code></td>
+          <td class="c-title">
+            the recipient accepts and both couples become connected
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-022</code></td>
+          <td class="c-title">
+            a declined request does not become a connection
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-023</code></td>
+          <td class="c-title">
+            the initiator cannot accept their own request
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-023</code></td>
+          <td class="c-title">
+            an unrelated couple cannot accept or reject someone else’s request
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-024</code></td>
+          <td class="c-title">
+            an unknown connection id and a repeated accept are stable errors
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-025</code></td>
+          <td class="c-title">
+            racing accept and reject settle on exactly one terminal state
+            
+          </td>
+          <td class="c-status"><span class="pill p-flaky">flaky</span><div class="muted" style="font-size:11px;margin-top:3px">passed on retry 1</div></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-026</code></td>
+          <td class="c-title">
+            the status filter is scoped and validated
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">545ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-028</code></td>
+          <td class="c-title">
+            only accepted couples become eligible for a group conversation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-031</code></td>
+          <td class="c-title">
+            a previously rejected pair follows an explicit reconnect policy
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-003</code></td>
+          <td class="c-title">
+            the pending badge reflects the incoming count on first load
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CON-019</code> <code>CON-020</code></td>
+          <td class="c-title">
+            incoming cards offer Accept/Decline and outgoing cards do not
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.1s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-messaging.spec.ts">
+      <div class="mhead">
+        <h3>Conversations, Messages, Reactions &amp; Groups</h3>
+        <div class="mnums">
+          <span class="pill p-pass">53 passed</span>
+          
+          
+          
+          <span class="muted">53 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/messaging/conversations-and-messages.md</code> · Spec: <code>tests/e2e/regression/messaging.spec.ts</code> · Prefixes: <code>MSG</code> <code>GRP</code> <code>THR</code> <code>TXT</code> <code>EDT</code> <code>DEL</code> <code>REA</code> <code>CFG</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>MSG-001</code> <code>MSG-003</code></td>
+          <td class="c-title">
+            a completed home has exactly one partner conversation, visible to both
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">802ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-001</code> <code>REL-005</code></td>
+          <td class="c-title">
+            every conversation timestamp carries an explicit UTC offset
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-006</code></td>
+          <td class="c-title">
+            a message sent seconds ago reads as &quot;now&quot;, not a timezone-shifted age
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-007</code></td>
+          <td class="c-title">
+            selecting a conversation deep-links and marks the row as current
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-008</code></td>
+          <td class="c-title">
+            a foreign conversation id reveals nothing and stays recoverable
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.5s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-008</code> <code>TXT-007</code></td>
+          <td class="c-title">
+            a non-participant is refused on read, send, edit and delete
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-009</code></td>
+          <td class="c-title">
+            the New group button opens exactly one dialog even when clicked repeatedly
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-003</code></td>
+          <td class="c-title">
+            a couple with no connections cannot create a group
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-001</code> <code>ACC-005</code></td>
+          <td class="c-title">
+            the group dialog closes on Escape and restores focus
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-001</code></td>
+          <td class="c-title">
+            focus moves into the dialog when it opens
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-002</code></td>
+          <td class="c-title">
+            a blank and an over-long group name are refused by the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-006</code></td>
+          <td class="c-title">
+            a created group appears for every participant couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>GRP-007</code></td>
+          <td class="c-title">
+            own couple, duplicates, unknown ids and empty lists are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-001</code></td>
+          <td class="c-title">
+            the send button is disabled for an empty and a whitespace-only draft
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-002</code></td>
+          <td class="c-title">
+            a message sends with Enter and appears in the thread
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-003</code></td>
+          <td class="c-title">
+            Shift+Enter inserts a newline instead of sending
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-003</code> <code>SEC-006</code></td>
+          <td class="c-title">
+            HTML-shaped message text renders literally
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-004</code></td>
+          <td class="c-title">
+            exactly 4000 characters is accepted and 4001 is refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-004</code></td>
+          <td class="c-title">
+            an oversized body is rejected without being silently truncated
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-006</code></td>
+          <td class="c-title">
+            a rapidly double-submitted draft sends only one message
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-006</code></td>
+          <td class="c-title">
+            a failed send does not silently discard the user’s draft
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">4.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TXT-005</code></td>
+          <td class="c-title">
+            drafts are kept per conversation
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.5s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>EDT-002</code></td>
+          <td class="c-title">
+            an edited message is marked edited and keeps its identity
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>EDT-003</code></td>
+          <td class="c-title">
+            only the sender may edit; the other partner is refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>EDT-003</code></td>
+          <td class="c-title">
+            empty, oversized and unknown-message edits are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DEL-001</code></td>
+          <td class="c-title">
+            a deleted message leaves a tombstone with no original content
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DEL-002</code></td>
+          <td class="c-title">
+            a non-sender cannot delete, and a repeated delete is a stable error
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>EDT-003</code> <code>DEL-003</code></td>
+          <td class="c-title">
+            a deleted message cannot be resurrected by an edit
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-002</code></td>
+          <td class="c-title">
+            a participant can add an allowed reaction
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-003</code></td>
+          <td class="c-title">
+            reacting twice changes the reaction rather than duplicating it
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-003</code></td>
+          <td class="c-title">
+            a reaction can be removed
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-004</code></td>
+          <td class="c-title">
+            reaction tokens outside the allowlist are refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-004</code> <code>SEC-004</code></td>
+          <td class="c-title">
+            a rejected reaction does not echo the raw payload back
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-005</code></td>
+          <td class="c-title">
+            concurrent reactions from both partners keep an accurate count
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.5s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REA-001</code> <code>MSG-012</code></td>
+          <td class="c-title">
+            the React control is reachable without a pointer hover
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>THR-004</code></td>
+          <td class="c-title">
+            a malformed cursor is rejected rather than silently restarting pagination
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>THR-004</code></td>
+          <td class="c-title">
+            pagination walks the history without gaps or duplicates
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>THR-004</code></td>
+          <td class="c-title">
+            an out-of-range take is clamped, not fatal
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.1s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>THR-005</code></td>
+          <td class="c-title">
+            each message maps to the correct sender identity
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-002</code></td>
+          <td class="c-title">
+            the owner can rename a group and every participant sees the new name
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-003</code></td>
+          <td class="c-title">
+            a non-owner participant cannot rename the group
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-003</code></td>
+          <td class="c-title">
+            both partners of the owning couple may rename
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-003</code></td>
+          <td class="c-title">
+            invalid group names are refused on rename
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-006</code></td>
+          <td class="c-title">
+            pin state is per-couple and never leaks to another couple
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-006</code></td>
+          <td class="c-title">
+            both partners of a couple share the same pin state
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-006</code></td>
+          <td class="c-title">
+            the partner conversation cannot be pinned or hidden through the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">794ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-007</code></td>
+          <td class="c-title">
+            hiding a group removes it for the hiding couple only
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-007</code></td>
+          <td class="c-title">
+            a new message unhides a hidden group
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-005</code></td>
+          <td class="c-title">
+            a not-connected couple cannot be added to a group
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-005</code></td>
+          <td class="c-title">
+            a non-participant cannot add a couple to a group
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>CFG-001</code></td>
+          <td class="c-title">
+            group settings are offered for a group and not for the partner chat
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-010</code></td>
+          <td class="c-title">
+            a message from one couple is visible to the other after a refetch
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.5s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>MSG-011</code></td>
+          <td class="c-title">
+            the messages view is usable at a 320px viewport
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.0s</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section class="module" id="mod-security-crosscutting.spec.ts">
+      <div class="mhead">
+        <h3>Cross-Cutting — Security, Reliability, Accessibility, Responsive &amp; Telemetry</h3>
+        <div class="mnums">
+          <span class="pill p-pass">36 passed</span>
+          
+          
+          
+          <span class="muted">36 executed</span>
+        </div>
+      </div>
+      <p class="msrc">Catalogue: <code>test-cases/cross-cutting/security-accessibility-responsive-telemetry.md</code> · Spec: <code>tests/e2e/regression/security-crosscutting.spec.ts</code> · Prefixes: <code>SEC</code> <code>REL</code> <code>ACC</code> <code>RSP</code> <code>TEL</code> <code>DEP</code></p>
+      <table class="ttable">
+        <thead><tr><th>Case ID</th><th>Scenario</th><th>Result</th><th>Time</th></tr></thead>
+        <tbody>
+        <tr class="">
+          <td class="c-ids"><code>SEC-002</code></td>
+          <td class="c-title">
+            absent, malformed and tampered bearer tokens are all refused
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">287ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-003</code></td>
+          <td class="c-title">
+            every protected endpoint refuses an anonymous caller
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">5ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-003</code></td>
+          <td class="c-title">
+            couple scoping comes from the token, not from a client-supplied id
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">808ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-004</code></td>
+          <td class="c-title">
+            error responses carry a stable contract and never leak internals
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-004</code></td>
+          <td class="c-title">
+            a validation failure uses the same envelope as the rest of the API
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-004</code></td>
+          <td class="c-title">
+            internal identifiers and paths are absent from a 404 body
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">272ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-005</code></td>
+          <td class="c-title">
+            login, recovery and foreign-resource lookups do not disclose existence
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-007</code></td>
+          <td class="c-title">
+            injection-shaped input is stored as data and never alters the query
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">821ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-009</code></td>
+          <td class="c-title">
+            API responses carry the documented security headers
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">268ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-009</code></td>
+          <td class="c-title">
+            security headers are also present on an error response
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>SEC-013</code></td>
+          <td class="c-title">
+            no credential value appears in any client-visible payload
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">3.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REL-001</code></td>
+          <td class="c-title">
+            a mutation attempted while offline reports failure rather than false success
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">5.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REL-002</code></td>
+          <td class="c-title">
+            a slow query shows a loading affordance and stays navigable
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REL-004</code></td>
+          <td class="c-title">
+            repeated identical mutations do not create duplicates
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">737ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>REL-005</code></td>
+          <td class="c-title">
+            API timestamps are unambiguous instants
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">286ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>DEP-002</code></td>
+          <td class="c-title">
+            the health endpoint reports a safe status
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-002</code></td>
+          <td class="c-title">
+            login inputs have programmatic labels and associated errors
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">894ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-001</code></td>
+          <td class="c-title">
+            the login form is completable by keyboard alone
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.2s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-008</code></td>
+          <td class="c-title">
+            the app shell exposes exactly one main landmark
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-008</code></td>
+          <td class="c-title">
+            each route has a level-1 heading
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2.3s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-008</code></td>
+          <td class="c-title">
+            the document title changes between routes
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-003</code></td>
+          <td class="c-title">
+            every icon-only button has an accessible name
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-005</code></td>
+          <td class="c-title">
+            focus moves predictably after a route change
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-006</code></td>
+          <td class="c-title">
+            interactive controls meet the 24px minimum target size
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-001</code></td>
+          <td class="c-title">
+            the login page does not scroll horizontally at 320px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">489ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-001</code></td>
+          <td class="c-title">
+            the login page does not scroll horizontally at 375px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">514ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-001</code></td>
+          <td class="c-title">
+            the login page does not scroll horizontally at 768px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">545ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-001</code></td>
+          <td class="c-title">
+            the login page does not scroll horizontally at 1024px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">572ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-001</code></td>
+          <td class="c-title">
+            the login page does not scroll horizontally at 1440px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">604ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-002</code></td>
+          <td class="c-title">
+            the app shell reflows between mobile and desktop
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.7s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>RSP-003</code></td>
+          <td class="c-title">
+            the dashboard does not overflow at 320px
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.9s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>ACC-006</code></td>
+          <td class="c-title">
+            the app remains usable at 200% zoom
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.8s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TEL-002</code></td>
+          <td class="c-title">
+            the anonymous id persists and the session id is tab-scoped
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">1.4s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TEL-004</code></td>
+          <td class="c-title">
+            a failing telemetry endpoint never blocks the product flow
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">5.6s</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TEL-005</code></td>
+          <td class="c-title">
+            the ingest endpoint scrubs forbidden keys regardless of casing
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2ms</td>
+        </tr>
+        <tr class="">
+          <td class="c-ids"><code>TEL-005</code></td>
+          <td class="c-title">
+            an oversized batch is capped rather than accepted wholesale
+            
+          </td>
+          <td class="c-status"><span class="pill p-pass">passed</span></td>
+          <td class="c-dur">2ms</td>
+        </tr></tbody>
+      </table>
+    </section>
+
+  <footer>
+    Generated from <code>regression-results.json</code> by
+    <code>tests/e2e/regression/build-report.mjs</code>.
+    Re-run with <code>npm run test:e2e:regression &amp;&amp; npm run report:regression</code>.
+  </footer>
+</div>
+</body>
+</html>

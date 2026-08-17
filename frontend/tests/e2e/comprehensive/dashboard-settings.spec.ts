@@ -24,11 +24,13 @@ test.describe('Dashboard', () => {
     await expect(page.getByText(couple.togetherID).first()).toBeVisible()
   })
 
-  test('shows both partners on the couple card', async ({ page }) => {
-    // The card shows the signed-in partner by username and the other partner by name (once the
-    // profile query resolves).
-    await expect(page.getByText(couple.registrant.username).first()).toBeVisible()
+  test('shows both partners on the couple card, each by name', async ({ page }) => {
+    // This assertion previously required the signed-in partner to be shown by *username* while the
+    // other was shown by name — codifying the inconsistency rather than catching it. Both halves of
+    // one card must identify people the same way, and a username is a credential, not a name.
+    await expect(page.getByText(couple.registrant.name).first()).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText(couple.partner.name).first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('body')).not.toContainText(couple.registrant.username)
   })
 
   test('renders the module grid with all six modules', async ({ page }) => {
