@@ -10,7 +10,9 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { theme, setTheme } = useThemeStore()
-  const { username, profilePictureUrl, role } = useAuthStore()
+  // `partnerName` is the *signed-in* partner's own display name (the field name is misleading).
+  // The shell identifies a person, so it uses their name — `username` is a login credential.
+  const { partnerName, profilePictureUrl, role } = useAuthStore()
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
@@ -39,9 +41,9 @@ export function TopBar({ onMenuClick }: TopBarProps) {
           </button>
 
           <NavLink to="/profile" className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-sandstone-100 dark:hover:bg-sandstone-800 transition-colors">
-            <CoupleAvatar src={profilePictureUrl} name={username ?? ''} role={role} size="sm" />
+            <CoupleAvatar src={profilePictureUrl} name={partnerName ?? ''} role={role} size="sm" />
             <span className="hidden sm:block text-sm font-medium text-sandstone-700 dark:text-sandstone-300 pr-1">
-              {username}
+              {partnerName}
             </span>
           </NavLink>
         </div>

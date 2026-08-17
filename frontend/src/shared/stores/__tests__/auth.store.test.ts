@@ -8,7 +8,7 @@ const baseAuthData = {
   coupleId: 'couple-uuid-123',
   partnerId: 'partner-uuid-456',
   username: 'madhuavinash',
-  partnerName: 'Priya Avinash',
+  partnerName: 'Madhu Avinash',
   togetherID: 'MADHU-PRIYA',
   role: 'Husband' as const,
   profilePictureUrl: null,
@@ -48,7 +48,7 @@ describe('useAuthStore', () => {
     expect(state.username).toBe('madhuavinash')
     expect(state.togetherID).toBe('MADHU-PRIYA')
     expect(state.role).toBe('Husband')
-    expect(state.partnerName).toBe('Priya Avinash')
+    expect(state.partnerName).toBe('Madhu Avinash')
   })
 
   it('should clear auth state on logout', () => {

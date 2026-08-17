@@ -19,7 +19,7 @@ export const authState = JSON.stringify({
     isAuthenticated: true,
     accessToken: 'test-token',
     username: 'madhu',
-    partnerName: 'Priya Avinash',
+    partnerName: 'Madhu Avinash',
     togetherID: 'MADHU-PRIYA',
     coupleId: ME_COUPLE,
     partnerId: ME_HUSBAND,

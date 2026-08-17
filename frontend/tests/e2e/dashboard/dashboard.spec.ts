@@ -4,7 +4,7 @@ const authStorageState = JSON.stringify({
   state: {
     isAuthenticated: true,
     username: 'madhu',
-    partnerName: 'Priya',
+    partnerName: 'Madhu Avinash',
     togetherID: 'MADHU-PRIYA',
     coupleId: '11111111-1111-1111-1111-111111111111',
     partnerId: '22222222-2222-2222-2222-222222222222',

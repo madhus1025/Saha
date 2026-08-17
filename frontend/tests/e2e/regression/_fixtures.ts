@@ -39,26 +39,84 @@ function token(len = 6): string {
   return out
 }
 
+/** Surname pool used to build display names that cannot be confused with a username. */
+const SURNAMES = [
+  'Quintero', 'Okonkwo', 'Bergqvist', 'Fontaine', 'Adebayo', 'Vasquez',
+  'Lindqvist', 'Achterberg', 'Marchetti', 'Nakamura', 'Oyelaran', 'Thibodeaux',
+]
+const GIVEN = [
+  'Bartholomew', 'Genevieve', 'Thorvald', 'Anneliese', 'Fitzgerald', 'Wilhelmina',
+  'Perpetua', 'Leopold', 'Marguerite', 'Cornelius', 'Rosalind', 'Ignatius',
+]
+
+const pick = <T,>(pool: T[]): T => pool[Math.floor(Math.random() * pool.length)]!
+
+/**
+ * Every field of a generated person is drawn from a different alphabet so no two can be mistaken
+ * for each other: an opaque username, a human display name sharing none of its letters as a
+ * substring, and an unrelated email local part.
+ *
+ * The old generator produced `username: 'hprfpersistA1B2'` alongside `name: 'Reg prfpersist A1B2'`.
+ * Both contain the tag and the random token, so an assertion on either matched the other and a
+ * screen rendering the wrong field passed. `assertDistinguishable` below now makes that impossible.
+ */
 export function makeCoupleSpec(tag: string): CoupleSpec {
   const r = token()
   const t = tag.toLowerCase().replace(/[^a-z0-9]/g, '') || 'x'
-  return {
+  const spec: CoupleSpec = {
     togetherID: `RGN-${tag.toUpperCase().replace(/[^A-Z0-9]/g, '')}-${r}`,
     registrant: {
       username: `h${t}${r}`.toLowerCase().slice(0, 30),
-      name: `Reg ${tag} ${r}`,
-      email: `h.${t}.${r}@rgn.local`.toLowerCase(),
+      name: `${pick(GIVEN)} ${pick(SURNAMES)}`,
+      email: `${token(7).toLowerCase()}@rgn.local`,
       phone: '+12025550101',
       role: 'Husband',
     },
     partner: {
       username: `w${t}${r}`.toLowerCase().slice(0, 30),
-      name: `Partner ${tag} ${r}`,
-      email: `w.${t}.${r}@rgn.local`.toLowerCase(),
+      name: `${pick(GIVEN)} ${pick(SURNAMES)}`,
+      email: `${token(7).toLowerCase()}@rgn.local`,
       phone: '+12025550102',
       role: 'Wife',
     },
     password: SEED_PASSWORD,
+  }
+
+  // Two random names can collide; regenerate rather than seed confusable data.
+  if (spec.registrant.name === spec.partner.name) return makeCoupleSpec(tag)
+  assertDistinguishable(spec.registrant)
+  assertDistinguishable(spec.partner)
+  return spec
+}
+
+/**
+ * Fails if any two fields of a person could be mistaken for one another.
+ *
+ * A wrong-field bug — rendering `username` where `name` belongs — is only detectable when the two
+ * values are unmistakably different. This is the guard that keeps that property true as fixtures
+ * are edited over time.
+ */
+export function assertDistinguishable(person: Person): void {
+  const fields: Record<string, string> = {
+    username: person.username,
+    name: person.name,
+    email: person.email.split('@')[0]!,
+    phone: person.phone,
+  }
+  const words = Object.entries(fields).flatMap(([field, value]) =>
+    value.toLowerCase().split(/\s+/).map((word) => ({ field, word })),
+  )
+
+  for (const a of words) {
+    for (const b of words) {
+      if (a.field === b.field || a.word.length < 3 || b.word.length < 3) continue
+      if (a.word.includes(b.word)) {
+        throw new Error(
+          `Fixture fields are confusable: ${a.field} "${a.word}" contains ${b.field} "${b.word}". ` +
+            `A screen rendering the wrong field would look correct. Use unrelated values.`,
+        )
+      }
+    }
   }
 }
 
@@ -282,11 +340,45 @@ export async function loginViaUi(page: Page, username: string, password = SEED_P
   await expect(page).toHaveURL(/\/(dashboard|waiting)/, { timeout: 15_000 })
 }
 
-/** The stable seeded roster from `npm run seed:e2e` (MADHU-PRIYA ⇄ RAVI-KAVYA are connected). */
+/**
+ * The stable seeded roster from `npm run seed:e2e` (MADHU-PRIYA ⇄ RAVI-KAVYA are connected).
+ *
+ * `name` is deliberately unrelated to `username` — see the note in `tests/e2e/real/seed.mjs`. Keep
+ * the two in step: these values must match what the seed script writes.
+ */
 export const ROSTER = {
-  madhu: { username: 'madhu', togetherID: 'MADHU-PRIYA', partner: 'priya' },
-  priya: { username: 'priya', togetherID: 'MADHU-PRIYA', partner: 'madhu' },
-  ravi: { username: 'ravi', togetherID: 'RAVI-KAVYA', partner: 'kavya' },
-  kavya: { username: 'kavya', togetherID: 'RAVI-KAVYA', partner: 'ravi' },
-  arjun: { username: 'arjun', togetherID: 'ARJUN-MEERA', partner: 'meera' },
+  madhu: { username: 'madhu', name: 'Bartholomew Quintero', togetherID: 'MADHU-PRIYA', partner: 'priya' },
+  priya: { username: 'priya', name: 'Genevieve Okonkwo', togetherID: 'MADHU-PRIYA', partner: 'madhu' },
+  ravi: { username: 'ravi', name: 'Thorvald Bergqvist', togetherID: 'RAVI-KAVYA', partner: 'kavya' },
+  kavya: { username: 'kavya', name: 'Anneliese Fontaine', togetherID: 'RAVI-KAVYA', partner: 'ravi' },
+  arjun: { username: 'arjun', name: 'Fitzgerald Adebayo', togetherID: 'ARJUN-MEERA', partner: 'meera' },
+  meera: { username: 'meera', name: 'Wilhelmina Vasquez', togetherID: 'ARJUN-MEERA', partner: 'arjun' },
 } as const
+
+/**
+ * Asserts a surface identifies a person by their **display name**, and never by a credential or
+ * contact detail that belongs on a different screen.
+ *
+ * The negative half is the part that earns its keep. `expect(getByText(/madhu/i)).toBeVisible()`
+ * passes whether the app renders the name or the username; only asserting the username is *absent*
+ * distinguishes a correct screen from a wrong-field one. It doubles as a PII check — an email or
+ * phone number leaking onto the dashboard fails here too.
+ */
+export async function expectIdentifiedByName(
+  page: Page,
+  person: { name: string; username: string; email?: string; phone?: string },
+  where = 'this screen',
+): Promise<void> {
+  await expect(page.getByText(person.name).first(), `${where} must show the display name`).toBeVisible()
+
+  const body = page.locator('body')
+  await expect(body, `${where} must not identify a person by their login username`).not.toContainText(
+    person.username,
+  )
+  if (person.email) {
+    await expect(body, `${where} must not expose an email address`).not.toContainText(person.email)
+  }
+  if (person.phone) {
+    await expect(body, `${where} must not expose a phone number`).not.toContainText(person.phone)
+  }
+}

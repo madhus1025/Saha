@@ -75,7 +75,7 @@ const itemVariants = {
 }
 
 export function DashboardPage() {
-  const { username, partnerName, togetherID, role } = useAuthStore()
+  const { partnerName, togetherID, role } = useAuthStore()
 
   const { data: profile } = useQuery({
     queryKey: queryKeys.profile.me,
@@ -88,6 +88,17 @@ export function DashboardPage() {
     if (hour < 17) return 'Good afternoon'
     return 'Good evening'
   }
+
+  /**
+   * How to address the signed-in partner.
+   *
+   * `username` is a login credential, not a name — greeting someone "Good morning, sri" when they
+   * are called Srikanth reads as a system talking to an account rather than a person. The profile
+   * query is authoritative; `partnerName` on the auth store is the same person's name captured at
+   * login (the field name is misleading — it is the *signed-in* partner, not their spouse) and
+   * covers the moment before the query resolves. Username is deliberately not a fallback.
+   */
+  const myName = profile?.name ?? partnerName ?? ''
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -102,7 +113,7 @@ export function DashboardPage() {
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
           <h1 className="page-header mt-1">
-            {greeting()}, {username}
+            {greeting()}, {myName}
           </h1>
           <p className="text-sandstone-500 dark:text-sandstone-400 mt-1 flex items-center gap-2">
             <span className="text-xs font-mono bg-forest-50 dark:bg-forest-900/40 px-2 py-0.5 rounded-full text-forest-600 dark:text-sage-300 tracking-wider">
@@ -124,13 +135,13 @@ export function DashboardPage() {
             <div className="flex flex-col items-center gap-2">
               <CoupleAvatar
                 src={profile?.profilePictureUrl}
-                name={username ?? ''}
+                name={myName}
                 role={role}
                 size="xl"
               />
               <div className="text-center">
                 <p className="text-sm font-semibold text-sandstone-900 dark:text-cream-200">
-                  {username}
+                  {myName}
                 </p>
                 <p className="text-xs text-forest-600 dark:text-sage-300">{role}</p>
               </div>
@@ -147,13 +158,13 @@ export function DashboardPage() {
             <div className="flex flex-col items-center gap-2">
               <CoupleAvatar
                 src={profile?.coupleInfo.partner?.profilePictureUrl}
-                name={profile?.coupleInfo.partner?.name ?? partnerName ?? ''}
+                name={profile?.coupleInfo.partner?.name ?? ''}
                 role={profile?.coupleInfo.partner?.role}
                 size="xl"
               />
               <div className="text-center">
                 <p className="text-sm font-semibold text-sandstone-900 dark:text-cream-200">
-                  {profile?.coupleInfo.partner?.name ?? partnerName}
+                  {profile?.coupleInfo.partner?.name}
                 </p>
                 <p className="text-xs text-forest-600 dark:text-sage-300">
                   {profile?.coupleInfo.partner?.role}

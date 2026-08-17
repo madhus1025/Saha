@@ -18,24 +18,88 @@ const API = process.env.SAHA_API_BASE ?? 'https://localhost:7001/api/v1'
 const PASSWORD = 'Our quiet home by the sea 1!' // matches PasswordRules: >= 8 chars, upper + lower + digit + special, <= 72 bytes
 const CONNECT = process.argv.includes('--connect')
 
-/** Stable, memorable roster. Re-running is safe: already-registered couples are skipped. */
+/**
+ * Stable, memorable roster. Re-running is safe: already-registered couples are skipped.
+ *
+ * Usernames stay short and memorable so a human can sign in by hand. Display names are chosen to
+ * share NO substring with the username, the email local part, or the TogetherID — deliberately.
+ *
+ * The previous roster paired `username: 'madhu'` with `name: 'Madhu A'`. Any assertion loose enough
+ * to be practical (`/madhu/i`) matched both, so a screen rendering the *username* where it should
+ * render the *name* looked identical to a correct one. That is exactly how the dashboard shipped
+ * greeting people by their login handle without a single test noticing. Confusable fixtures cannot
+ * detect wrong-field bugs, no matter how many cases you write.
+ */
 const ROSTER = [
   {
     togetherID: 'MADHU-PRIYA',
-    husband: { username: 'madhu', name: 'Madhu A', email: 'madhu@saha.local', phone: '+12025550101' },
-    wife: { username: 'priya', name: 'Priya A', email: 'priya@saha.local', phone: '+12025550102' },
+    husband: { username: 'madhu', name: 'Bartholomew Quintero', email: 'wex4901@saha.local', phone: '+12025550101' },
+    wife: { username: 'priya', name: 'Genevieve Okonkwo', email: 'vyn7233@saha.local', phone: '+12025550102' },
   },
   {
     togetherID: 'RAVI-KAVYA',
-    husband: { username: 'ravi', name: 'Ravi K', email: 'ravi@saha.local', phone: '+12025550201' },
-    wife: { username: 'kavya', name: 'Kavya K', email: 'kavya@saha.local', phone: '+12025550202' },
+    husband: { username: 'ravi', name: 'Thorvald Bergqvist', email: 'zub8514@saha.local', phone: '+12025550201' },
+    wife: { username: 'kavya', name: 'Anneliese Fontaine', email: 'jom2670@saha.local', phone: '+12025550202' },
   },
   {
     togetherID: 'ARJUN-MEERA',
-    husband: { username: 'arjun', name: 'Arjun M', email: 'arjun@saha.local', phone: '+12025550301' },
-    wife: { username: 'meera', name: 'Meera M', email: 'meera@saha.local', phone: '+12025550302' },
+    husband: { username: 'arjun', name: 'Fitzgerald Adebayo', email: 'qip3948@saha.local', phone: '+12025550301' },
+    wife: { username: 'meera', name: 'Wilhelmina Vasquez', email: 'hax5162@saha.local', phone: '+12025550302' },
   },
 ]
+
+/**
+ * Refuses to seed data in which one field could be mistaken for another.
+ *
+ * This is the guard that keeps the property above from rotting: the moment someone "tidies up" a
+ * fixture to `name: 'Madhu A'`, seeding fails loudly instead of silently blinding the suite.
+ */
+function assertDistinguishable(person, togetherID) {
+  const fields = {
+    username: person.username,
+    name: person.name,
+    email: person.email.split('@')[0],
+    phone: person.phone,
+  }
+  const parts = Object.entries(fields).flatMap(([field, value]) =>
+    // Names are compared word by word: "Bartholomew Quintero" must not contain the username, but
+    // neither should either of its words.
+    String(value).toLowerCase().split(/\s+/).map((word) => ({ field, word })),
+  )
+
+  for (const a of parts) {
+    for (const b of parts) {
+      if (a.field === b.field || a.word.length < 3 || b.word.length < 3) continue
+      if (a.word.includes(b.word)) {
+        throw new Error(
+          `Fixture fields are confusable: ${a.field} "${a.word}" contains ${b.field} "${b.word}". ` +
+            `A screen rendering the wrong one would look correct. Pick unrelated values.`,
+        )
+      }
+    }
+  }
+
+  const id = togetherID.toLowerCase()
+  for (const [field, value] of Object.entries(fields)) {
+    for (const word of String(value).toLowerCase().split(/\s+/)) {
+      if (word.length >= 3 && id.includes(word)) {
+        throw new Error(
+          `Fixture ${field} "${word}" appears inside TogetherID "${togetherID}". ` +
+            `Assertions could not tell them apart. Pick an unrelated value.`,
+        )
+      }
+    }
+  }
+}
+
+for (const couple of ROSTER) {
+  // Usernames intentionally echo the TogetherID (madhu → MADHU-PRIYA) so humans can sign in, so the
+  // username is exempt from the ID check — but names and emails must stay clearly distinct.
+  assertDistinguishable({ ...couple.husband, username: 'x'.repeat(40) }, couple.togetherID)
+  assertDistinguishable({ ...couple.wife, username: 'x'.repeat(40) }, couple.togetherID)
+  assertDistinguishable(couple.husband, 'ZZZZ')
+  assertDistinguishable(couple.wife, 'ZZZZ')
+}
 
 const j = (r) => r.json().catch(() => ({}))
 

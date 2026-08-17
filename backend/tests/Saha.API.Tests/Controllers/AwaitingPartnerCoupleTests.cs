@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Saha.API.Tests.Infrastructure;
+using Saha.Domain.Enums;
 using Xunit;
 
 namespace Saha.API.Tests.Controllers;
@@ -21,11 +22,13 @@ namespace Saha.API.Tests.Controllers;
 public sealed class AwaitingPartnerCoupleTests : IClassFixture<SahaWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly SahaWebApplicationFactory _factory;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     public AwaitingPartnerCoupleTests(SahaWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.WithWebHostBuilder(_ => { }).CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
@@ -241,5 +244,51 @@ public sealed class AwaitingPartnerCoupleTests : IClassFixture<SahaWebApplicatio
         var response = await _client.GetAsync("/api/v1/auth/session");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    // ── Legacy couples: complete, but provisioned before partner chats existed ─
+
+    /// <summary>
+    /// A couple that completed *before* partner-conversation provisioning shipped has no partner
+    /// conversation, and nothing will ever raise <c>CoupleCompletedEvent</c> for it again.
+    ///
+    /// This is not hypothetical: it is the state of a real production couple, where
+    /// <c>GET /conversations</c> answers 500 and messaging is entirely unusable. The self-heal in
+    /// <c>EnsurePartnerConversationAsync</c> is what recovers it, and until now only the
+    /// solo-couple path was covered — an already-complete couple with a missing conversation was
+    /// not, which is exactly the shape that broke.
+    /// </summary>
+    [Fact]
+    public async Task GetConversations_ShouldSelfHeal_ForACompleteCoupleMissingItsPartnerChat()
+    {
+        const string togetherId = "LEGACY-NOCONVO1";
+        var couple = await AuthFlow.CompleteCoupleAsync(
+            _client, togetherId, "legacynoconvo", "legacynoconvo@test.com",
+            "legacynoconvopartner", "legacynoconvopartner@test.com");
+        AuthFlow.Authorize(_client, couple.AccessToken);
+
+        // Prime the conversation, then delete it to reproduce the legacy state.
+        (await _client.GetAsync("/api/v1/conversations")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using (var db = _factory.GetDbContext())
+        {
+            var coupleId = db.Couples.Single(c => c.TogetherID == togetherId).Id;
+            var partnerChats = db.Conversations
+                .Where(c => c.Type == ConversationType.Partner && c.PartnerCoupleId == coupleId)
+                .ToList();
+            partnerChats.Should().NotBeEmpty("the couple must have a partner chat before we remove it");
+
+            db.Conversations.RemoveRange(partnerChats);
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.GetAsync("/api/v1/conversations");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            "a complete couple whose partner conversation is missing must self-heal, not fault");
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        body.GetArrayLength().Should().Be(1, "the partner conversation should have been re-provisioned");
+        body[0].GetProperty("type").GetString().Should().Be("Partner");
     }
 }

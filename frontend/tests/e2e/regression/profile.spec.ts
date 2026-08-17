@@ -60,6 +60,11 @@ test.describe('PRF · Profile display', () => {
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
     await expect(page.getByText(ROSTER.madhu.togetherID).first()).toBeVisible()
     await expect(page.getByRole('button', { name: /^Edit/i }).first()).toBeVisible()
+
+    // Profile is the one screen where showing the username alongside the name is intended
+    // (`Srikanth @sri`), so assert both are present rather than that the username is absent.
+    await expect(page.getByText(ROSTER.madhu.name).first()).toBeVisible()
+    await expect(page.getByText(`@${ROSTER.madhu.username}`).first()).toBeVisible()
   })
 
   test('[PRF-002] the partner tab is read-only — no Edit and no photo control', async ({ page }) => {
