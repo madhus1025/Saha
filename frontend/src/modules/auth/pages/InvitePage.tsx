@@ -21,7 +21,7 @@ export function InvitePage() {
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           Invite your person
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
+        <p className="mt-1.5 text-copy-muted">
           This screen is still being designed. Your home is created and waiting.
         </p>
       </div>

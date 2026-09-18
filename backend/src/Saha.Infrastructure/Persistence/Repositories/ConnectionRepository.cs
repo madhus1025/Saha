@@ -85,6 +85,17 @@ public sealed class ConnectionRepository : IConnectionRepository
     public async Task UpdateAsync(CoupleConnection connection, CancellationToken cancellationToken = default)
     {
         _context.CoupleConnections.Update(connection);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A competing request changed this connection after it was loaded. Only one terminal
+            // transition may win; expose the race as a deterministic client conflict.
+            throw new ConflictException(
+                "CONNECTION_ALREADY_RESOLVED",
+                "This connection request has already been accepted or declined.");
+        }
     }
 }

@@ -23,7 +23,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       <div className="flex items-center justify-between px-6 h-16">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg text-sandstone-600 hover:text-sandstone-900 hover:bg-sandstone-100 transition-colors"
+          className="lg:hidden p-2 rounded-lg text-copy-muted hover:text-sandstone-900 dark:hover:text-sandstone-100 hover:bg-sandstone-100 transition-colors"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
@@ -34,13 +34,16 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-sandstone-600 hover:text-sandstone-900 hover:bg-sandstone-100 dark:text-sandstone-400 dark:hover:text-sandstone-100 dark:hover:bg-sandstone-800 transition-colors"
+            className="p-2 rounded-lg text-copy-muted hover:text-sandstone-900 hover:bg-sandstone-100 dark:hover:text-sandstone-100 dark:hover:bg-sandstone-800 transition-colors"
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
 
-          <NavLink to="/profile" className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-sandstone-100 dark:hover:bg-sandstone-800 transition-colors">
+          <NavLink
+            to="/profile"
+            className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-sandstone-100 dark:hover:bg-sandstone-800 transition-colors"
+          >
             <CoupleAvatar src={profilePictureUrl} name={partnerName ?? ''} role={role} size="sm" />
             <span className="hidden sm:block text-sm font-medium text-sandstone-700 dark:text-sandstone-300 pr-1">
               {partnerName}

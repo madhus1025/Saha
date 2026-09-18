@@ -48,7 +48,9 @@ test.describe('NAV · Routing and shell', () => {
     await expect(page.getByRole('button', { name: /Sign out/i })).toBeVisible()
   })
 
-  test('[NAV-003] exactly one sidebar item is marked current for the active route', async ({ page }) => {
+  test('[NAV-003] exactly one sidebar item is marked current for the active route', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     await page.goto('/connect')
 
@@ -109,7 +111,9 @@ test.describe('NAV · Routing and shell', () => {
     await expect(page).toHaveURL(/\/profile/)
   })
 
-  test('[NAV-009] an unknown route shows the 404 page with recovery navigation', async ({ page }) => {
+  test('[NAV-009] an unknown route shows the 404 page with recovery navigation', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     await page.goto('/this-route-does-not-exist')
     await expect(page.getByText(/not found/i).first()).toBeVisible()
@@ -151,13 +155,17 @@ test.describe('DASH · Dashboard', () => {
     // fixture name ("Madhu A") contained the username, so either field satisfied the check.
     const greeting = page.getByText(/Good (morning|afternoon|evening)/i).first()
     await expect(greeting).toBeVisible()
-    await expect(greeting, 'the greeting must use the display name').toContainText(ROSTER.madhu.name)
+    await expect(greeting, 'the greeting must use the display name').toContainText(
+      ROSTER.madhu.name,
+    )
     await expect(greeting, 'the greeting must not use the login username').not.toContainText(
       ROSTER.madhu.username,
     )
   })
 
-  test('[DASH-002] the dashboard shows the couple’s own TogetherID and no other', async ({ page }) => {
+  test('[DASH-002] the dashboard shows the couple’s own TogetherID and no other', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     await expect(page.getByText(ROSTER.madhu.togetherID).first()).toBeVisible()
     await expect(page.locator('body')).not.toContainText(ROSTER.ravi.togetherID)
@@ -185,10 +193,11 @@ test.describe('DASH · Dashboard', () => {
     }
   })
 
-  test('[DASH-004] all six module cards render and each navigates by keyboard', async ({ page }) => {
+  test('[DASH-004] all six module cards render and each navigates by keyboard', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     for (const module of ['Finance', 'Memories', 'Goals', 'Messages', 'Connect', 'Calendar']) {
-      await page.goto('/dashboard')
       // Scope to the main region: the sidebar carries links with the same names.
       const card = page
         .getByRole('main')
@@ -198,10 +207,17 @@ test.describe('DASH · Dashboard', () => {
       await card.focus()
       await card.press('Enter')
       await expect(page).toHaveURL(new RegExp(module.toLowerCase()))
+      // Return through the app shell. Repeated page.goto() calls restart the SPA and rotate the
+      // refresh token between every assertion, which tests session bootstrapping rather than the
+      // keyboard navigation this case owns and can cancel an in-flight refresh during navigation.
+      await page.getByRole('link', { name: 'Home', exact: true }).first().click()
+      await expect(page).toHaveURL(/\/dashboard/)
     }
   })
 
-  test('[DASH-005] a failed session/profile load never renders another couple’s data', async ({ page }) => {
+  test('[DASH-005] a failed session/profile load never renders another couple’s data', async ({
+    page,
+  }) => {
     const other = await seedCompleteCouple(api, 'dashfail')
     await loginViaUi(page, other.registrant.username)
 
@@ -219,12 +235,16 @@ test.describe('MOD · Coming-soon modules', () => {
       await loginViaUi(page, ROSTER.madhu.username)
       await page.goto(`/${module.toLowerCase()}`)
 
-      await expect(page.getByRole('heading', { name: new RegExp(module, 'i') }).first()).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: new RegExp(module, 'i') }).first(),
+      ).toBeVisible()
       await expect(page.getByText(/coming soon/i).first()).toBeVisible()
     })
   }
 
-  test('[MOD-005] placeholder modules honour the route guard and survive a refresh', async ({ page }) => {
+  test('[MOD-005] placeholder modules honour the route guard and survive a refresh', async ({
+    page,
+  }) => {
     await page.goto('/finance')
     await expect(page).toHaveURL(/\/login/)
 
@@ -275,7 +295,9 @@ test.describe('SET · Settings', () => {
     await expect(page.locator('html')).toHaveClass(/dark/)
   })
 
-  test('[SET-002] Light applies immediately and persists across a route change', async ({ page }) => {
+  test('[SET-002] Light applies immediately and persists across a route change', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     await page.goto('/settings')
     await page.getByRole('radio', { name: /Light/i }).click()

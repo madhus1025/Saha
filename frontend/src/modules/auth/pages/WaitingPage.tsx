@@ -44,13 +44,13 @@ export function WaitingPage() {
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           Waiting for your person
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
+        <p className="mt-1.5 text-copy-muted">
           Your home at <span className="font-mono">{togetherID}</span> is ready. It opens when
           you’re both here.
         </p>
       </div>
 
-      <div className="rounded-2xl bg-sandstone-50 dark:bg-sandstone-900/50 p-6 text-sm text-sandstone-600 dark:text-sandstone-400">
+      <div className="rounded-2xl bg-sandstone-50 dark:bg-sandstone-900/50 p-6 text-sm text-copy-muted">
         We’ll let you in the moment they accept their invitation.
       </div>
 

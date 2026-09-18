@@ -38,9 +38,7 @@ export function LoginPage() {
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           Welcome home
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
-          Either of your usernames opens the door.
-        </p>
+        <p className="mt-1.5 text-copy-muted">Either of your usernames opens the door.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
@@ -65,7 +63,7 @@ export function LoginPage() {
               onClick={() => setShowPassword((visible) => !visible)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showPassword}
-              className="text-sandstone-500 hover:text-sandstone-700"
+              className="text-copy-muted hover:text-sandstone-700"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -88,12 +86,18 @@ export function LoginPage() {
       </form>
 
       <div className="border-t border-sandstone-200 dark:border-sandstone-800 pt-5 text-center text-sm">
-        <span className="text-sandstone-500 dark:text-sandstone-400">New here? </span>
-        <Link to="/register" className="font-semibold text-forest-700 dark:text-sage-300 hover:underline">
+        <span className="text-copy-muted">New here? </span>
+        <Link
+          to="/register"
+          className="font-semibold text-forest-700 dark:text-sage-300 hover:underline"
+        >
           Create our home
         </Link>
-        <span className="text-sandstone-400"> · </span>
-        <Link to="/invite/accept" className="font-semibold text-forest-700 dark:text-sage-300 hover:underline">
+        <span className="text-copy-subtle"> · </span>
+        <Link
+          to="/invite/accept"
+          className="font-semibold text-forest-700 dark:text-sage-300 hover:underline"
+        >
           I have an invitation
         </Link>
       </div>

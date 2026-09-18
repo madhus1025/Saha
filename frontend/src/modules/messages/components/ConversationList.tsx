@@ -26,7 +26,9 @@ export function ConversationList({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-sandstone-100 dark:border-sandstone-800">
-        <h1 className="text-lg font-semibold text-sandstone-900 dark:text-sandstone-100">Messages</h1>
+        <h1 className="text-lg font-semibold text-sandstone-900 dark:text-sandstone-100">
+          Messages
+        </h1>
         <Button size="sm" onClick={onNewGroup} aria-label="New group chat">
           <Plus className="w-4 h-4" />
           New
@@ -43,7 +45,7 @@ export function ConversationList({
         {!isLoading && !isError && conversations?.length === 0 && (
           <div className="text-center py-16 px-6 space-y-2">
             <MessageCircle className="w-8 h-8 text-sandstone-300 mx-auto" />
-            <p className="text-sm text-sandstone-500 dark:text-sandstone-400">No conversations yet</p>
+            <p className="text-sm text-copy-muted">No conversations yet</p>
           </div>
         )}
 
@@ -84,11 +86,7 @@ function ConversationListItem({
           : 'hover:bg-sandstone-50 dark:hover:bg-sandstone-800/40',
       )}
     >
-      <Avatar
-        src={conversation.participants[0]?.avatarUrl}
-        name={title}
-        size="md"
-      />
+      <Avatar src={conversation.participants[0]?.avatarUrl} name={title} size="md" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           {conversation.isPinned && <Pin className="w-3 h-3 text-gold-500 shrink-0" />}
@@ -96,11 +94,11 @@ function ConversationListItem({
             {title}
           </span>
         </div>
-        <p className="text-xs text-sandstone-500 dark:text-sandstone-400 truncate">
+        <p className="text-xs text-copy-muted truncate">
           {conversation.lastMessagePreview ?? 'Say hello 👋'}
         </p>
       </div>
-      <span className="text-[11px] text-sandstone-400 shrink-0">
+      <span className="text-[11px] text-copy-subtle shrink-0">
         {relativeTime(conversation.lastActivityAt)}
       </span>
     </button>

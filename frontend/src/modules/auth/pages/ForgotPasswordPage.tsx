@@ -13,16 +13,17 @@ import { telemetry } from '@/core/telemetry/telemetry.service'
 import { FORGOT_PASSWORD_CLICKED } from '@/core/telemetry/events'
 
 const schema = z.object({
-  togetherIDOrUsername: z
-    .string()
-    .min(1, 'Please enter your Together ID or username')
-    .max(50),
+  togetherIDOrUsername: z.string().min(1, 'Please enter your Together ID or username').max(50),
 })
 
 type FormValues = z.infer<typeof schema>
 
 export function ForgotPasswordPage() {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
   })
 
@@ -34,7 +35,7 @@ export function ForgotPasswordPage() {
     onSuccess: () => {
       toast({
         title: 'Code sent!',
-        description: 'A reset code has been sent to both partners\' email addresses.',
+        description: "A reset code has been sent to both partners' email addresses.",
         variant: 'success',
       })
     },
@@ -58,7 +59,7 @@ export function ForgotPasswordPage() {
         <h1 className="text-3xl font-medium text-sandstone-900 dark:text-sandstone-100">
           Reset password
         </h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1.5">
+        <p className="text-copy-muted mt-1.5">
           Enter your Together ID or username and we'll send a code to both email addresses.
         </p>
       </div>
@@ -78,10 +79,7 @@ export function ForgotPasswordPage() {
               A 6-digit code has been sent to both partners' email addresses.
             </p>
           </div>
-          <Link
-            to="/reset-password"
-            className="btn-primary inline-block mt-2"
-          >
+          <Link to="/reset-password" className="btn-primary inline-block mt-2">
             Enter reset code
           </Link>
         </motion.div>
@@ -89,10 +87,10 @@ export function ForgotPasswordPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <Input
             label="Together ID or Username"
-            placeholder="MADHU-PRIYA or madhu"
+            placeholder="YOUR-TOGETHER-ID or your_username"
             leftIcon={Hash}
             error={errors.togetherIDOrUsername?.message}
-            hint="Enter your couple's Together ID (e.g. MADHU-PRIYA) or your personal username"
+            hint="Enter your couple's Together ID or your personal username"
             required
             {...register('togetherIDOrUsername')}
           />
@@ -106,7 +104,7 @@ export function ForgotPasswordPage() {
       <div className="text-center">
         <Link
           to="/login"
-          className="text-sm text-sandstone-500 hover:text-sandstone-700 dark:text-sandstone-400 transition-colors"
+          className="text-sm text-copy-muted hover:text-sandstone-700 transition-colors"
         >
           ← Back to sign in
         </Link>

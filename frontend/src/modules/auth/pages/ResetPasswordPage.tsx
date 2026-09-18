@@ -38,7 +38,11 @@ export function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
   })
 
@@ -76,7 +80,7 @@ export function ResetPasswordPage() {
         <h1 className="text-3xl font-medium text-sandstone-900 dark:text-sandstone-100">
           New password
         </h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1.5">
+        <p className="text-copy-muted mt-1.5">
           Enter the code you received and set a new shared password.
         </p>
       </div>
@@ -84,7 +88,7 @@ export function ResetPasswordPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <Input
           label="Together ID or Username"
-          placeholder="MADHU-PRIYA or madhu"
+          placeholder="YOUR-TOGETHER-ID or your_username"
           leftIcon={Hash}
           error={errors.togetherIDOrUsername?.message}
           required
@@ -118,7 +122,7 @@ export function ResetPasswordPage() {
               // into a form they reached because they already could not get in (SAHA-D13).
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showPassword}
-              className="text-sandstone-400 hover:text-sandstone-600"
+              className="text-copy-subtle hover:text-sandstone-700 dark:hover:text-sandstone-300"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -141,7 +145,7 @@ export function ResetPasswordPage() {
       </form>
 
       <div className="text-center">
-        <Link to="/forgot-password" className="text-sm text-sandstone-500 hover:text-sandstone-700 dark:text-sandstone-400">
+        <Link to="/forgot-password" className="text-sm text-copy-muted hover:text-sandstone-700">
           ← Resend code
         </Link>
       </div>

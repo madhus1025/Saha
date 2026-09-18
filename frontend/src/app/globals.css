@@ -10,13 +10,13 @@
     --card-foreground: 141 12% 18%;
     --popover: 0 0% 100%;
     --popover-foreground: 141 12% 18%;
-    --primary: 141 19% 30%;        /* forest-500 #3f5c49 */
+    --primary: 141 19% 30%; /* forest-500 #3f5c49 */
     --primary-foreground: 40 37% 93%; /* cream #f3f0e7 */
     --secondary: 141 12% 92%;
     --secondary-foreground: 141 12% 20%;
     --muted: 141 8% 90%;
     --muted-foreground: 141 8% 45%;
-    --accent: 128 26% 70%;         /* sage-300 #9fc7a4 */
+    --accent: 128 26% 70%; /* sage-300 #9fc7a4 */
     --accent-foreground: 141 19% 15%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
@@ -30,7 +30,10 @@
     --sage: #9fc7a4;
     --cream: #f3f0e7;
     --sandstone: #c9b88a;
-    --ivory: #FDFAF3;
+    --ivory: #fdfaf3;
+    /* Readable semantic copy colors. Decorative sandstone remains intentionally pale. */
+    --copy-muted: #6b5c3e;
+    --copy-subtle: #806d49;
   }
 
   .dark {
@@ -40,7 +43,7 @@
     --card-foreground: 40 33% 92%;
     --popover: 141 15% 11%;
     --popover-foreground: 40 33% 92%;
-    --primary: 128 26% 70%;        /* sage-300 lighter in dark */
+    --primary: 128 26% 70%; /* sage-300 lighter in dark */
     --primary-foreground: 141 20% 7%;
     --secondary: 141 12% 17%;
     --secondary-foreground: 40 20% 82%;
@@ -53,6 +56,8 @@
     --border: 141 12% 20%;
     --input: 141 12% 20%;
     --ring: 128 26% 60%;
+    --copy-muted: #ddd0ae;
+    --copy-subtle: #c9b88a;
   }
 
   * {
@@ -84,7 +89,7 @@
 
   .input-warm {
     @apply w-full px-4 py-2.5 rounded-xl border border-sandstone-200 bg-white
-           text-sandstone-900 placeholder:text-sandstone-400
+           text-sandstone-900 placeholder:text-copy-subtle
            focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent
            transition-all duration-200
            dark:bg-forest-950 dark:border-forest-800 dark:text-cream-200;

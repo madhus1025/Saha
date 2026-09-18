@@ -32,9 +32,7 @@ const navigation = [
   { name: 'Calendar', href: '/calendar', icon: Calendar },
 ] as const
 
-const secondaryNavigation = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-] as const
+const secondaryNavigation = [{ name: 'Settings', href: '/settings', icon: Settings }] as const
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const navigate = useNavigate()
@@ -70,7 +68,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded-lg text-sandstone-400 hover:text-sandstone-600 hover:bg-sandstone-100 transition-colors"
+          className="lg:hidden p-1.5 rounded-lg text-copy-subtle hover:text-sandstone-700 dark:hover:text-sandstone-300 hover:bg-sandstone-100 transition-colors"
           aria-label="Close sidebar"
         >
           <X className="w-5 h-5" />
@@ -84,9 +82,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             key={href}
             to={href}
             onClick={onClose}
-            className={({ isActive }) =>
-              cn('nav-link', isActive && 'active')
-            }
+            className={({ isActive }) => cn('nav-link', isActive && 'active')}
           >
             <Icon className="w-5 h-5 flex-shrink-0" />
             <span>{name}</span>
@@ -101,9 +97,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             key={href}
             to={href}
             onClick={onClose}
-            className={({ isActive }) =>
-              cn('nav-link', isActive && 'active')
-            }
+            className={({ isActive }) => cn('nav-link', isActive && 'active')}
           >
             <Icon className="w-5 h-5 flex-shrink-0" />
             <span>{name}</span>
@@ -124,9 +118,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64">
-        {sidebarContent}
-      </div>
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64">{sidebarContent}</div>
 
       {/* Mobile sidebar */}
       <AnimatePresence>

@@ -62,7 +62,11 @@ export function ProfilePage() {
       toast({ title: 'Profile updated', variant: 'success' })
     },
     onError: (error) => {
-      toast({ title: 'Update failed', description: extractApiError(error).message, variant: 'error' })
+      toast({
+        title: 'Update failed',
+        description: extractApiError(error).message,
+        variant: 'error',
+      })
     },
   })
 
@@ -74,7 +78,11 @@ export function ProfilePage() {
       toast({ title: 'Photo updated', variant: 'success' })
     },
     onError: (error) => {
-      toast({ title: 'Upload failed', description: extractApiError(error).message, variant: 'error' })
+      toast({
+        title: 'Upload failed',
+        description: extractApiError(error).message,
+        variant: 'error',
+      })
     },
   })
 
@@ -108,7 +116,7 @@ export function ProfilePage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="page-header">Profile</h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1">
+        <p className="text-copy-muted mt-1">
           Manage your personal details and view your couple information
         </p>
       </div>
@@ -139,15 +147,20 @@ export function ProfilePage() {
             aria-selected={activeTab === tab}
             aria-controls="profile-tabpanel"
             tabIndex={activeTab === tab ? 0 : -1}
-            onClick={() => { setActiveTab(tab); setIsEditing(false) }}
+            onClick={() => {
+              setActiveTab(tab)
+              setIsEditing(false)
+            }}
             className={cn(
               'flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
               activeTab === tab
                 ? 'bg-white dark:bg-sandstone-800 text-sandstone-900 dark:text-sandstone-100 shadow-warm-sm'
-                : 'text-sandstone-500 dark:text-sandstone-400 hover:text-sandstone-700',
+                : 'text-copy-muted hover:text-sandstone-700',
             )}
           >
-            {tab === 'me' ? 'My Profile' : `${myProfile?.coupleInfo.partner?.name ?? 'Partner'}'s Profile`}
+            {tab === 'me'
+              ? 'My Profile'
+              : `${myProfile?.coupleInfo.partner?.name ?? 'Partner'}'s Profile`}
           </button>
         ))}
       </div>
@@ -203,7 +216,7 @@ export function ProfilePage() {
                       <h2 className="text-2xl font-medium text-sandstone-900 dark:text-sandstone-100">
                         {currentProfile.name}
                       </h2>
-                      <p className="text-sandstone-500 dark:text-sandstone-400 mt-0.5">
+                      <p className="text-copy-muted mt-0.5">
                         @{currentProfile.username} · {currentProfile.role}
                       </p>
                     </div>
@@ -225,7 +238,7 @@ export function ProfilePage() {
 
                   <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sandstone-50 dark:bg-sandstone-800 border border-sandstone-100 dark:border-sandstone-700">
                     <Shield className="w-3.5 h-3.5 text-gold-500" />
-                    <span className="text-xs font-medium text-sandstone-600 dark:text-sandstone-400 font-mono tracking-wider">
+                    <span className="text-xs font-medium text-copy-muted font-mono tracking-wider">
                       {currentProfile.coupleInfo.togetherID}
                     </span>
                   </div>
@@ -239,18 +252,47 @@ export function ProfilePage() {
                 <CardHeader title="Edit Profile" />
                 <form
                   noValidate
-                  onSubmit={handleSubmit((values) =>
-                    updateMutation.mutate(values)
-                  )}
+                  onSubmit={handleSubmit((values) => updateMutation.mutate(values))}
                   className="space-y-4"
                 >
-                  <Input label="Full Name" error={errors.name?.message} required {...register('name')} />
-                  <Input label="Date of Birth" type="date" leftIcon={Calendar} error={errors.dateOfBirth?.message} required {...register('dateOfBirth')} />
-                  <Input label="Email" type="email" leftIcon={Mail} error={errors.email?.message} required {...register('email')} />
-                  <Input label="Phone Number" type="tel" leftIcon={Phone} error={errors.phoneNumber?.message} required {...register('phoneNumber')} />
+                  <Input
+                    label="Full Name"
+                    error={errors.name?.message}
+                    required
+                    {...register('name')}
+                  />
+                  <Input
+                    label="Date of Birth"
+                    type="date"
+                    leftIcon={Calendar}
+                    error={errors.dateOfBirth?.message}
+                    required
+                    {...register('dateOfBirth')}
+                  />
+                  <Input
+                    label="Email"
+                    type="email"
+                    leftIcon={Mail}
+                    error={errors.email?.message}
+                    required
+                    {...register('email')}
+                  />
+                  <Input
+                    label="Phone Number"
+                    type="tel"
+                    leftIcon={Phone}
+                    error={errors.phoneNumber?.message}
+                    required
+                    {...register('phoneNumber')}
+                  />
 
                   <div className="flex gap-3 pt-2">
-                    <Button type="button" variant="secondary" onClick={() => setIsEditing(false)} className="flex-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setIsEditing(false)}
+                      className="flex-1"
+                    >
                       <X className="w-4 h-4" />
                       Cancel
                     </Button>
@@ -267,17 +309,25 @@ export function ProfilePage() {
                 <dl className="space-y-4">
                   {[
                     { icon: User, label: 'Name', value: currentProfile.name },
-                    { icon: Calendar, label: 'Date of Birth', value: format(new Date(currentProfile.dateOfBirth), 'MMMM d, yyyy') },
+                    {
+                      icon: Calendar,
+                      label: 'Date of Birth',
+                      value: format(new Date(currentProfile.dateOfBirth), 'MMMM d, yyyy'),
+                    },
                     { icon: Mail, label: 'Email', value: currentProfile.email },
                     { icon: Phone, label: 'Phone', value: currentProfile.phoneNumber },
                   ].map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-start gap-4">
                       <div className="w-9 h-9 rounded-xl bg-sandstone-50 dark:bg-sandstone-800 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-sandstone-400" />
+                        <Icon className="w-4 h-4 text-copy-subtle" />
                       </div>
                       <div>
-                        <dt className="text-xs font-medium text-sandstone-400 dark:text-sandstone-500 uppercase tracking-wider">{label}</dt>
-                        <dd className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 mt-0.5">{value}</dd>
+                        <dt className="text-xs font-medium text-copy-subtle uppercase tracking-wider">
+                          {label}
+                        </dt>
+                        <dd className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 mt-0.5">
+                          {value}
+                        </dd>
                       </div>
                     </div>
                   ))}
@@ -299,8 +349,9 @@ export function ProfilePage() {
                   <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100">
                     {currentProfile.coupleInfo.partner?.name}
                   </p>
-                  <p className="text-xs text-sandstone-500 dark:text-sandstone-400">
-                    @{currentProfile.coupleInfo.partner?.username} · {currentProfile.coupleInfo.partner?.role}
+                  <p className="text-xs text-copy-muted">
+                    @{currentProfile.coupleInfo.partner?.username} ·{' '}
+                    {currentProfile.coupleInfo.partner?.role}
                   </p>
                 </div>
               </div>

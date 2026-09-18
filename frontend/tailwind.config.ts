@@ -40,16 +40,19 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Semantic text tokens switch with the theme and meet WCAG AA on their default surfaces.
+        'copy-muted': 'var(--copy-muted)',
+        'copy-subtle': 'var(--copy-subtle)',
         // Saha palette — derived from the logo icon
         // Forest green (icon background): primary action color
         forest: {
-          50:  '#f0f7f3',
+          50: '#f0f7f3',
           100: '#d9ede1',
           200: '#b3dbc4',
           300: '#7ec2a0',
           400: '#4fa37c',
-          500: '#3f5c49',  // icon bg light
-          600: '#314a3a',  // icon bg dark
+          500: '#3f5c49', // icon bg light
+          600: '#314a3a', // icon bg dark
           700: '#243728',
           800: '#182419',
           900: '#0d130e',
@@ -57,10 +60,10 @@ const config: Config = {
         },
         // Sage green (icon vesica/leaf): accent / highlight color
         sage: {
-          50:  '#f3f9f4',
+          50: '#f3f9f4',
           100: '#e3f1e6',
           200: '#c6e3cc',
-          300: '#9fc7a4',  // exact icon leaf color
+          300: '#9fc7a4', // exact icon leaf color
           400: '#74aa7b',
           500: '#4f8c57',
           600: '#3a6e40',
@@ -71,23 +74,23 @@ const config: Config = {
         // Cream (icon ring color): used for text on dark surfaces
         cream: {
           DEFAULT: '#f3f0e7',
-          50:  '#fdfcf9',
+          50: '#fdfcf9',
           100: '#f8f5ee',
-          200: '#f3f0e7',  // exact icon ring color
+          200: '#f3f0e7', // exact icon ring color
           300: '#e8e2d5',
           400: '#d6cdb8',
           500: '#bfb49a',
         },
         // Sandstone: neutral base (warm parchment tones)
         sandstone: {
-          50:  '#fefcf8',
+          50: '#fefcf8',
           100: '#faf8f0',
           200: '#f5f0e1',
           300: '#ede4cc',
           400: '#ddd0ae',
           500: '#c9b88a',
           600: '#b09a6a',
-          700: '#8d7a52',
+          700: '#806d49',
           800: '#6b5c3e',
           900: '#4a4030',
           950: '#2a231a',
@@ -110,7 +113,8 @@ const config: Config = {
         'warm-sm': '0 1px 3px 0 rgba(74, 64, 48, 0.08), 0 1px 2px -1px rgba(74, 64, 48, 0.06)',
         'warm-md': '0 4px 6px -1px rgba(74, 64, 48, 0.10), 0 2px 4px -2px rgba(74, 64, 48, 0.06)',
         'warm-lg': '0 10px 15px -3px rgba(74, 64, 48, 0.10), 0 4px 6px -4px rgba(74, 64, 48, 0.06)',
-        'warm-xl': '0 20px 25px -5px rgba(74, 64, 48, 0.12), 0 8px 10px -6px rgba(74, 64, 48, 0.06)',
+        'warm-xl':
+          '0 20px 25px -5px rgba(74, 64, 48, 0.12), 0 8px 10px -6px rgba(74, 64, 48, 0.06)',
         'inner-warm': 'inset 0 2px 4px 0 rgba(74, 64, 48, 0.05)',
       },
       animation: {

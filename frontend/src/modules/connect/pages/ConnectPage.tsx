@@ -43,10 +43,18 @@ export function ConnectPage() {
     mutationFn: connectApi.sendConnectionRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.connect.connections() })
-      toast({ title: 'Request sent!', description: 'The couple will be notified.', variant: 'success' })
+      toast({
+        title: 'Request sent!',
+        description: 'The couple will be notified.',
+        variant: 'success',
+      })
     },
     onError: (error) => {
-      toast({ title: 'Request failed', description: extractApiError(error).message, variant: 'error' })
+      toast({
+        title: 'Request failed',
+        description: extractApiError(error).message,
+        variant: 'error',
+      })
     },
   })
 
@@ -73,22 +81,24 @@ export function ConnectPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="page-header">Connect</h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1">
-          Find other couples and build your social circle
-        </p>
+        <p className="text-copy-muted mt-1">Find other couples and build your social circle</p>
         <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sandstone-50 dark:bg-sandstone-800 border border-sandstone-100 dark:border-sandstone-700">
-          <span className="text-xs font-mono text-forest-600 dark:text-sage-300 tracking-wider">{togetherID}</span>
-          <span className="text-xs text-sandstone-400">— Your Together ID</span>
+          <span className="text-xs font-mono text-forest-600 dark:text-sage-300 tracking-wider">
+            {togetherID}
+          </span>
+          <span className="text-xs text-copy-subtle">— Your Together ID</span>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-sandstone-100 dark:bg-sandstone-900 rounded-2xl">
-        {([
-          { key: 'connections', label: 'Connected' },
-          { key: 'pending', label: 'Pending' },
-          { key: 'search', label: 'Find Couples' },
-        ] as const).map(({ key, label }) => (
+        {(
+          [
+            { key: 'connections', label: 'Connected' },
+            { key: 'pending', label: 'Pending' },
+            { key: 'search', label: 'Find Couples' },
+          ] as const
+        ).map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -96,7 +106,7 @@ export function ConnectPage() {
               'flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
               activeTab === key
                 ? 'bg-white dark:bg-sandstone-800 text-sandstone-900 dark:text-sandstone-100 shadow-warm-sm'
-                : 'text-sandstone-500 hover:text-sandstone-700 dark:text-sandstone-400',
+                : 'text-copy-muted hover:text-sandstone-700',
             )}
           >
             {label}
@@ -117,7 +127,11 @@ export function ConnectPage() {
             <EmptyState
               icon={<UserPlus className="w-8 h-8 text-sandstone-300" />}
               message="No connections yet. Search for couples to connect!"
-              action={<Button size="sm" onClick={() => setActiveTab('search')}>Find Couples</Button>}
+              action={
+                <Button size="sm" onClick={() => setActiveTab('search')}>
+                  Find Couples
+                </Button>
+              }
             />
           ) : (
             <div className="space-y-3">
@@ -141,15 +155,24 @@ export function ConnectPage() {
           ) : (
             <div className="space-y-3">
               {pendingConnections.map((conn) => (
-                <div key={conn.connectionId} className="flex items-center gap-4 p-4 rounded-xl bg-sandstone-50 dark:bg-sandstone-900/50 border border-sandstone-100 dark:border-sandstone-800">
+                <div
+                  key={conn.connectionId}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-sandstone-50 dark:bg-sandstone-900/50 border border-sandstone-100 dark:border-sandstone-800"
+                >
                   <div className="flex -space-x-2">
                     <Avatar src={conn.husbandProfilePictureUrl} name={conn.husbandName} size="sm" />
                     <Avatar src={conn.wifeProfilePictureUrl} name={conn.wifeName} size="sm" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">{conn.togetherID}</p>
-                    <p className="text-xs text-sandstone-500">{conn.husbandName} & {conn.wifeName}</p>
-                    <p className="text-xs text-sandstone-400 mt-0.5">{conn.isInitiator ? 'Request sent by you' : 'Request received'}</p>
+                    <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">
+                      {conn.togetherID}
+                    </p>
+                    <p className="text-xs text-copy-muted">
+                      {conn.husbandName} & {conn.wifeName}
+                    </p>
+                    <p className="text-xs text-copy-subtle mt-0.5">
+                      {conn.isInitiator ? 'Request sent by you' : 'Request received'}
+                    </p>
                   </div>
                   {!conn.isInitiator && (
                     <div className="flex gap-2">
@@ -218,7 +241,7 @@ export function ConnectPage() {
             )}
 
             {searchQuery.length < 2 && (
-              <p className="text-center text-sm text-sandstone-400 py-4">
+              <p className="text-center text-sm text-copy-subtle py-4">
                 Enter at least 2 characters to search
               </p>
             )}
@@ -237,8 +260,12 @@ function ConnectionCard({ connection }: { connection: ConnectionDto }) {
         <Avatar src={connection.wifeProfilePictureUrl} name={connection.wifeName} size="sm" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">{connection.togetherID}</p>
-        <p className="text-xs text-sandstone-500">{connection.husbandName} & {connection.wifeName}</p>
+        <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">
+          {connection.togetherID}
+        </p>
+        <p className="text-xs text-copy-muted">
+          {connection.husbandName} & {connection.wifeName}
+        </p>
       </div>
       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-forest-50 dark:bg-forest-900/20 border border-forest-100 dark:border-forest-800">
         <Check className="w-3 h-3 text-forest-500" />
@@ -259,13 +286,11 @@ function SearchResultCard({
 }) {
   const statusMap = {
     Accepted: { label: 'Connected', class: 'bg-forest-50 text-forest-600 border-forest-100' },
-    Pending: { label: 'Pending', class: 'bg-sandstone-50 text-sandstone-600 border-sandstone-100' },
+    Pending: { label: 'Pending', class: 'bg-sandstone-50 text-copy-muted border-sandstone-100' },
     Rejected: null,
   }
 
-  const status = result.existingConnectionStatus
-    ? statusMap[result.existingConnectionStatus]
-    : null
+  const status = result.existingConnectionStatus ? statusMap[result.existingConnectionStatus] : null
 
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl bg-sandstone-50 dark:bg-sandstone-900/50 border border-sandstone-100 dark:border-sandstone-800">
@@ -274,8 +299,12 @@ function SearchResultCard({
         <Avatar src={result.wifeProfilePictureUrl} name={result.wifeName} size="sm" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">{result.togetherID}</p>
-        <p className="text-xs text-sandstone-500">{result.husbandName} & {result.wifeName}</p>
+        <p className="text-sm font-medium text-sandstone-900 dark:text-sandstone-100 font-mono tracking-wider">
+          {result.togetherID}
+        </p>
+        <p className="text-xs text-copy-muted">
+          {result.husbandName} & {result.wifeName}
+        </p>
       </div>
       {status ? (
         <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium border', status.class)}>
@@ -303,7 +332,7 @@ function EmptyState({
   return (
     <div className="text-center py-12 space-y-3">
       <div className="flex justify-center">{icon}</div>
-      <p className="text-sm text-sandstone-500 dark:text-sandstone-400">{message}</p>
+      <p className="text-sm text-copy-muted">{message}</p>
       {action}
     </div>
   )

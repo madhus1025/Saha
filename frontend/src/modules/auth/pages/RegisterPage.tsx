@@ -36,7 +36,7 @@ export function RegisterPage() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-sandstone-600 dark:text-sandstone-400">
+        <p className="text-sm text-copy-muted">
           Step {step} of 3 · <span className="font-medium">{STEP_LABELS[step - 1]}</span>
         </p>
 
@@ -68,8 +68,11 @@ export function RegisterPage() {
       )}
 
       <div className="border-t border-sandstone-200 dark:border-sandstone-800 pt-5 text-center text-sm">
-        <span className="text-sandstone-500 dark:text-sandstone-400">Already home? </span>
-        <Link to="/login" className="font-semibold text-forest-700 dark:text-sage-300 hover:underline">
+        <span className="text-copy-muted">Already home? </span>
+        <Link
+          to="/login"
+          className="font-semibold text-forest-700 dark:text-sage-300 hover:underline"
+        >
           Sign in
         </Link>
       </div>

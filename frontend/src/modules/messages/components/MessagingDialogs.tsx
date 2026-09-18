@@ -89,7 +89,7 @@ function Modal({
           <h2 className="text-base font-semibold text-sandstone-900 dark:text-sandstone-100">
             {title}
           </h2>
-          <button onClick={onClose} aria-label="Close" className="p-1 text-sandstone-400">
+          <button onClick={onClose} aria-label="Close" className="p-1 text-copy-subtle">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -144,9 +144,9 @@ export function NewGroupDialog({
       />
 
       <div>
-        <p className="text-xs font-medium text-sandstone-500 mb-2">Add connected couples</p>
+        <p className="text-xs font-medium text-copy-muted mb-2">Add connected couples</p>
         {!connections?.length ? (
-          <p className="text-sm text-sandstone-400 py-4 text-center">
+          <p className="text-sm text-copy-subtle py-4 text-center">
             You have no connected couples yet.
           </p>
         ) : (
@@ -161,11 +161,11 @@ export function NewGroupDialog({
               />
             </div>
             {search.trim() === '' ? (
-              <p className="text-sm text-sandstone-400 py-4 text-center">
+              <p className="text-sm text-copy-subtle py-4 text-center">
                 Search by name or Together ID to add couples.
               </p>
             ) : filteredConnections.length === 0 ? (
-              <p className="text-sm text-sandstone-400 py-4 text-center">
+              <p className="text-sm text-copy-subtle py-4 text-center">
                 No couples match “{search.trim()}”.
               </p>
             ) : (
@@ -189,7 +189,7 @@ export function NewGroupDialog({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{c.togetherID}</p>
-                        <p className="text-xs text-sandstone-500 truncate">
+                        <p className="text-xs text-copy-muted truncate">
                           {c.husbandName} & {c.wifeName}
                         </p>
                       </div>
@@ -272,9 +272,9 @@ export function ConversationSettingsDialog({
       )}
 
       <div>
-        <p className="text-xs font-medium text-sandstone-500 mb-2">Add a couple</p>
+        <p className="text-xs font-medium text-copy-muted mb-2">Add a couple</p>
         {addable.length === 0 ? (
-          <p className="text-sm text-sandstone-400">No eligible connected couples.</p>
+          <p className="text-sm text-copy-subtle">No eligible connected couples.</p>
         ) : (
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {addable.map((c) => (

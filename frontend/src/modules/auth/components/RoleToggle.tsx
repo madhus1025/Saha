@@ -52,7 +52,7 @@ export function RoleToggle({ value, onChange, error }: RoleToggleProps) {
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-600',
                 selected
                   ? 'bg-white dark:bg-sandstone-700 text-sandstone-900 dark:text-cream-100 shadow-warm-sm'
-                  : 'text-sandstone-500 dark:text-sandstone-400 hover:text-sandstone-700',
+                  : 'text-copy-muted hover:text-sandstone-700',
               )}
             >
               {role}

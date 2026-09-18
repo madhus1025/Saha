@@ -16,7 +16,11 @@ interface RegisterStepYourDoorProps {
 
 const TOGETHER_ID_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,48}[A-Z0-9]$/
 
-export function RegisterStepYourDoor({ onOpenHome, onBack, isSubmitting }: RegisterStepYourDoorProps) {
+export function RegisterStepYourDoor({
+  onOpenHome,
+  onBack,
+  isSubmitting,
+}: RegisterStepYourDoorProps) {
   useEffect(() => {
     telemetry.track('auth.register_step3_viewed')
   }, [])
@@ -47,7 +51,7 @@ export function RegisterStepYourDoor({ onOpenHome, onBack, isSubmitting }: Regis
 
   const verdict = () => {
     if (!togetherID || !looksValid || checkFailed) return null
-    if (isChecking) return <span className="text-sandstone-500">Checking…</span>
+    if (isChecking) return <span className="text-copy-muted">Checking…</span>
     if (available === true) {
       return (
         <span className="flex items-center gap-1.5 text-forest-600 dark:text-sage-300">
@@ -72,7 +76,7 @@ export function RegisterStepYourDoor({ onOpenHome, onBack, isSubmitting }: Regis
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           The name on your door
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
+        <p className="mt-1.5 text-copy-muted">
           Your TogetherID is public — it’s how other couples find you. Uppercase, yours forever.
         </p>
       </div>
@@ -106,7 +110,7 @@ export function RegisterStepYourDoor({ onOpenHome, onBack, isSubmitting }: Regis
           Open our home
         </Button>
 
-        <p className="text-center text-xs text-sandstone-500 dark:text-sandstone-400">
+        <p className="text-center text-xs text-copy-muted">
           {/*
             The deck's copy reads "Next: invite Arun in." — but no in-scope screen collects the
             partner's name, so it cannot be rendered here yet. The invite screen asks for it.

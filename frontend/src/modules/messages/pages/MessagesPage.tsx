@@ -60,7 +60,7 @@ export function MessagesPage() {
               onOpenSettings={() => setShowSettings(true)}
             />
           ) : (
-            <div className="hidden md:flex flex-col items-center justify-center h-full text-center gap-2 text-sandstone-400">
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center gap-2 text-copy-subtle">
               <MessageCircle className="w-10 h-10" />
               <p className="text-sm">Select a conversation to start chatting</p>
             </div>

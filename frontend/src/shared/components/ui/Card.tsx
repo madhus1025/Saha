@@ -21,11 +21,7 @@ const paddingClasses = {
 }
 
 export function Card({ children, className, padding = 'md' }: CardProps) {
-  return (
-    <div className={cn('card-warm', paddingClasses[padding], className)}>
-      {children}
-    </div>
-  )
+  return <div className={cn('card-warm', paddingClasses[padding], className)}>{children}</div>
 }
 
 export function CardHeader({ title, subtitle, action, className }: CardHeaderProps) {
@@ -33,9 +29,7 @@ export function CardHeader({ title, subtitle, action, className }: CardHeaderPro
     <div className={cn('flex items-start justify-between gap-4 mb-6', className)}>
       <div>
         <h2 className="section-header">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-sandstone-500 dark:text-sandstone-400 mt-0.5">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-sm text-copy-muted mt-0.5">{subtitle}</p>}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
     </div>

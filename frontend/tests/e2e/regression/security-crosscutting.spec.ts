@@ -7,7 +7,16 @@
  * dedicated environments and are excluded from this suite.
  */
 import { test, expect, type APIRequestContext } from '@playwright/test'
-import { API_BASE, ROSTER, SEED_PASSWORD, apiContext, apiLogin, auth, loginViaUi, seedCompleteCouple } from './_fixtures'
+import {
+  API_BASE,
+  ROSTER,
+  SEED_PASSWORD,
+  apiContext,
+  apiLogin,
+  auth,
+  loginViaUi,
+  seedCompleteCouple,
+} from './_fixtures'
 
 let api: APIRequestContext
 test.beforeAll(async () => {
@@ -23,12 +32,24 @@ test.describe('SEC · Platform security', () => {
     const tampered = good.slice(0, -6) + 'AAAAAA' // corrupt the signature
 
     expect((await api.get(`${API_BASE}/auth/session`)).status()).toBe(401)
-    expect((await api.get(`${API_BASE}/auth/session`, { headers: { Authorization: 'Bearer' } })).status()).toBe(401)
     expect(
-      (await api.get(`${API_BASE}/auth/session`, { headers: { Authorization: 'Bearer not.a.jwt' } })).status(),
+      (
+        await api.get(`${API_BASE}/auth/session`, { headers: { Authorization: 'Bearer' } })
+      ).status(),
     ).toBe(401)
     expect(
-      (await api.get(`${API_BASE}/auth/session`, { headers: { Authorization: `Bearer ${tampered}` } })).status(),
+      (
+        await api.get(`${API_BASE}/auth/session`, {
+          headers: { Authorization: 'Bearer not.a.jwt' },
+        })
+      ).status(),
+    ).toBe(401)
+    expect(
+      (
+        await api.get(`${API_BASE}/auth/session`, {
+          headers: { Authorization: `Bearer ${tampered}` },
+        })
+      ).status(),
       'a token with a broken signature must not be accepted',
     ).toBe(401)
   })
@@ -56,7 +77,9 @@ test.describe('SEC · Platform security', () => {
     const raw = await (await client.get(`/connect/connections?coupleId=${other.coupleId}`)).text()
     expect(raw).not.toContain(other.togetherID)
 
-    const conversations = await (await client.get(`/conversations?coupleId=${other.coupleId}`)).text()
+    const conversations = await (
+      await client.get(`/conversations?coupleId=${other.coupleId}`)
+    ).text()
     expect(conversations).not.toContain(other.registrant.email)
   })
 
@@ -112,25 +135,37 @@ test.describe('SEC · Platform security', () => {
 
     const victim = await seedCompleteCouple(api, 'existB')
     const victimClient = auth(api, await apiLogin(api, victim.registrant.username))
-    const victimConversations = (await (await victimClient.get('/conversations')).json()) as Array<{ id: string }>
+    const victimConversations = (await (await victimClient.get('/conversations')).json()) as Array<{
+      id: string
+    }>
     const foreign = await client.get(`/conversations/${victimConversations[0]!.id}`)
 
-    expect(foreign.status(), 'a foreign resource must 404 exactly like a missing one').toBe(nonexistent.status())
+    expect(foreign.status(), 'a foreign resource must 404 exactly like a missing one').toBe(
+      nonexistent.status(),
+    )
   })
 
   test('[SEC-007] injection-shaped input is stored as data and never alters the query', async () => {
     const couple = await seedCompleteCouple(api, 'sqlinj')
     const client = auth(api, await apiLogin(api, couple.registrant.username))
 
-    for (const payload of ["'; DROP TABLE Messages; --", "' UNION SELECT * FROM Partners --", '%%%']) {
+    for (const payload of [
+      "'; DROP TABLE Messages; --",
+      "' UNION SELECT * FROM Partners --",
+      '%%%',
+    ]) {
       const res = await client.get(`/connect/search?togetherId=${encodeURIComponent(payload)}`)
       expect(res.status(), `payload must not break the query: ${payload}`).toBeLessThan(500)
     }
 
     // The roster must still be intact afterwards.
-    expect((await api.post(`${API_BASE}/auth/login`, {
-      data: { username: ROSTER.madhu.username, password: SEED_PASSWORD },
-    })).status()).toBe(200)
+    expect(
+      (
+        await api.post(`${API_BASE}/auth/login`, {
+          data: { username: ROSTER.madhu.username, password: SEED_PASSWORD },
+        })
+      ).status(),
+    ).toBe(200)
   })
 
   test('[SEC-009] API responses carry the documented security headers', async () => {
@@ -200,7 +235,9 @@ test.describe('REL · Reliability', () => {
     ).toHaveCount(0)
   })
 
-  test('[REL-002] a slow query shows a loading affordance and stays navigable', async ({ page }) => {
+  test('[REL-002] a slow query shows a loading affordance and stays navigable', async ({
+    page,
+  }) => {
     await loginViaUi(page, ROSTER.madhu.username)
     await page.route('**/profile/me', async (route) => {
       await new Promise((r) => setTimeout(r, 3000))
@@ -228,7 +265,10 @@ test.describe('REL · Reliability', () => {
       client.put('/profile/me', payload),
       client.put('/profile/me', payload),
     ])
-    expect(results.every((r) => r.status() < 500), 'concurrent identical saves must not 500').toBeTruthy()
+    expect(
+      results.every((r) => r.status() < 500),
+      'concurrent identical saves must not 500',
+    ).toBeTruthy()
 
     const after = (await (await client.get('/profile/me')).json()) as Record<string, unknown>
     expect(after['name']).toBe('Repeated Save')
@@ -252,7 +292,9 @@ test.describe('REL · Reliability', () => {
 })
 
 test.describe('ACC · Accessibility', () => {
-  test('[ACC-002] login inputs have programmatic labels and associated errors', async ({ page }) => {
+  test('[ACC-002] login inputs have programmatic labels and associated errors', async ({
+    page,
+  }) => {
     await page.goto('/login')
 
     await expect(page.getByLabel('Username')).toBeVisible()
@@ -260,7 +302,10 @@ test.describe('ACC · Accessibility', () => {
 
     await page.getByRole('button', { name: 'Sign in' }).click()
     const username = page.getByLabel('Username')
-    await expect(username, 'an invalid field must be marked invalid').toHaveAttribute('aria-invalid', 'true')
+    await expect(username, 'an invalid field must be marked invalid').toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
     const describedBy = await username.getAttribute('aria-describedby')
     expect(describedBy, 'the error text must be associated with its field').toBeTruthy()
   })
@@ -341,18 +386,84 @@ test.describe('ACC · Accessibility', () => {
         const r = el.getBoundingClientRect()
         if (r.width === 0 && r.height === 0) return // hidden
         if (r.width < 24 || r.height < 24) {
-          offenders.push(`${el.tagName}:${(el.textContent ?? '').trim().slice(0, 24)} ${Math.round(r.width)}x${Math.round(r.height)}`)
+          offenders.push(
+            `${el.tagName}:${(el.textContent ?? '').trim().slice(0, 24)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+          )
         }
       })
       return offenders
     })
     expect(tooSmall, 'WCAG 2.2 AA target size (minimum) is 24×24 CSS px').toEqual([])
   })
+
+  test('[ACC-007] semantic secondary copy meets WCAG AA contrast in both themes', async ({
+    page,
+  }) => {
+    await loginViaUi(page, ROSTER.madhu.username)
+    await page.goto('/dashboard')
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.goto('/settings')
+      await page.getByRole('radio', { name: theme === 'light' ? 'Light' : 'Dark' }).click()
+      await page.goto('/dashboard')
+
+      const failures = await page.evaluate(() => {
+        const rgb = (value: string) => {
+          const parts = value.match(/[\d.]+/g)?.map(Number) ?? []
+          return parts.slice(0, 3)
+        }
+        const luminance = (color: number[]) => {
+          const [r, g, b] = color.map((channel) => {
+            const value = channel! / 255
+            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+          })
+          return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
+        }
+        const ratio = (foreground: number[], background: number[]) => {
+          const a = luminance(foreground)
+          const b = luminance(background)
+          return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+        }
+        const backgroundOf = (element: Element) => {
+          let current: Element | null = element
+          while (current) {
+            const value = getComputedStyle(current).backgroundColor
+            if (value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') return rgb(value)
+            current = current.parentElement
+          }
+          return rgb(getComputedStyle(document.body).backgroundColor)
+        }
+
+        return [...document.querySelectorAll('.text-copy-muted, .text-copy-subtle')]
+          .filter(
+            (element) =>
+              element.getBoundingClientRect().width > 0 && (element.textContent ?? '').trim(),
+          )
+          .map((element) => {
+            const foreground = getComputedStyle(element).color
+            const background = backgroundOf(element)
+            return {
+              text: (element.textContent ?? '').trim().slice(0, 60),
+              foreground,
+              background,
+              contrast: ratio(rgb(foreground), background),
+            }
+          })
+          .filter(({ contrast }) => contrast < 4.5)
+      })
+
+      expect(failures, `${theme} secondary copy must meet the 4.5:1 normal-text threshold`).toEqual(
+        [],
+      )
+    }
+  })
 })
 
 test.describe('RSP · Responsive', () => {
   for (const width of [320, 375, 768, 1024, 1440]) {
-    test(`[RSP-001] the login page does not scroll horizontally at ${width}px`, async ({ page }) => {
+    test(`[RSP-001] the login page does not scroll horizontally at ${width}px`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/login')
       const overflow = await page.evaluate(
@@ -392,7 +503,10 @@ test.describe('RSP · Responsive', () => {
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
-    expect(overflow, 'content must reflow rather than scroll in two dimensions').toBeLessThanOrEqual(1)
+    expect(
+      overflow,
+      'content must reflow rather than scroll in two dimensions',
+    ).toBeLessThanOrEqual(1)
   })
 })
 
@@ -410,7 +524,11 @@ test.describe('TEL · Telemetry', () => {
 
   test('[TEL-004] a failing telemetry endpoint never blocks the product flow', async ({ page }) => {
     await page.route('**/telemetry/events', (route) =>
-      route.fulfill({ status: 500, contentType: 'application/json', body: '{"code":"INTERNAL_ERROR"}' }),
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"code":"INTERNAL_ERROR"}',
+      }),
     )
 
     const pageErrors: string[] = []

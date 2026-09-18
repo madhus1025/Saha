@@ -16,7 +16,8 @@ const moduleCards = [
     icon: Wallet,
     title: 'Finance',
     description: 'Track shared expenses and budgets',
-    color: 'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
+    color:
+      'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
     iconColor: 'text-forest-500 dark:text-forest-300',
   },
   {
@@ -24,7 +25,8 @@ const moduleCards = [
     icon: ImageIcon,
     title: 'Memories',
     description: 'Preserve your most cherished moments',
-    color: 'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
+    color:
+      'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
     iconColor: 'text-sage-500 dark:text-sage-300',
   },
   {
@@ -32,7 +34,8 @@ const moduleCards = [
     icon: Target,
     title: 'Goals',
     description: 'Dream and achieve together',
-    color: 'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
+    color:
+      'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
     iconColor: 'text-forest-600 dark:text-forest-300',
   },
   {
@@ -40,7 +43,8 @@ const moduleCards = [
     icon: MessageCircle,
     title: 'Messages',
     description: 'Private messages between you two',
-    color: 'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
+    color:
+      'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
     iconColor: 'text-sage-500 dark:text-sage-300',
   },
   {
@@ -48,7 +52,8 @@ const moduleCards = [
     icon: Users,
     title: 'Connect',
     description: 'Discover and connect with other couples',
-    color: 'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
+    color:
+      'bg-sage-50 border-sage-100 text-sage-700 dark:bg-sage-900/20 dark:border-sage-800 dark:text-sage-300',
     iconColor: 'text-sage-600 dark:text-sage-300',
   },
   {
@@ -56,7 +61,8 @@ const moduleCards = [
     icon: Calendar,
     title: 'Calendar',
     description: 'Shared events and special dates',
-    color: 'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
+    color:
+      'bg-forest-50 border-forest-100 text-forest-700 dark:bg-forest-900/20 dark:border-forest-800 dark:text-forest-300',
     iconColor: 'text-forest-500 dark:text-forest-300',
   },
 ] as const
@@ -109,13 +115,13 @@ export function DashboardPage() {
         className="flex items-start justify-between gap-6"
       >
         <div>
-          <p className="text-sandstone-500 dark:text-sandstone-400 text-sm font-medium">
+          <p className="text-copy-muted text-sm font-medium">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
           <h1 className="page-header mt-1">
             {greeting()}, {myName}
           </h1>
-          <p className="text-sandstone-500 dark:text-sandstone-400 mt-1 flex items-center gap-2">
+          <p className="text-copy-muted mt-1 flex items-center gap-2">
             <span className="text-xs font-mono bg-forest-50 dark:bg-forest-900/40 px-2 py-0.5 rounded-full text-forest-600 dark:text-sage-300 tracking-wider">
               {togetherID}
             </span>
@@ -133,12 +139,7 @@ export function DashboardPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-forest-50 via-white to-sage-50/40 dark:from-forest-900/40 dark:via-forest-950 dark:to-sage-900/10" />
           <div className="relative flex items-center gap-6">
             <div className="flex flex-col items-center gap-2">
-              <CoupleAvatar
-                src={profile?.profilePictureUrl}
-                name={myName}
-                role={role}
-                size="xl"
-              />
+              <CoupleAvatar src={profile?.profilePictureUrl} name={myName} role={role} size="xl" />
               <div className="text-center">
                 <p className="text-sm font-semibold text-sandstone-900 dark:text-cream-200">
                   {myName}
@@ -193,16 +194,19 @@ export function DashboardPage() {
                   color,
                 )}
               >
-                <div className={cn('p-2.5 rounded-xl bg-white/50 dark:bg-black/20 flex-shrink-0', iconColor)}>
+                <div
+                  className={cn(
+                    'p-2.5 rounded-xl bg-white/50 dark:bg-black/20 flex-shrink-0',
+                    iconColor,
+                  )}
+                >
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="font-medium text-sandstone-900 dark:text-sandstone-100 group-hover:text-forest-700 dark:group-hover:text-sage-300 transition-colors">
                     {title}
                   </p>
-                  <p className="text-xs text-sandstone-500 dark:text-sandstone-400 mt-0.5 leading-relaxed">
-                    {description}
-                  </p>
+                  <p className="text-xs text-copy-muted mt-0.5 leading-relaxed">{description}</p>
                 </div>
               </Link>
             </motion.div>

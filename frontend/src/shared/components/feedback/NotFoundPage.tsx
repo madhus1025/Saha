@@ -15,13 +15,10 @@ export function NotFoundPage() {
         <h1 className="text-2xl font-medium text-sandstone-800 dark:text-sandstone-200 -mt-4">
           Page not found
         </h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-3 mb-8 text-balance">
+        <p className="text-copy-muted mt-3 mb-8 text-balance">
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <Link
-          to="/dashboard"
-          className="btn-primary"
-        >
+        <Link to="/dashboard" className="btn-primary">
           Go home
         </Link>
       </motion.div>

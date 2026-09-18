@@ -44,8 +44,9 @@ export function RegisterStepOneKey({ defaultValues, onContinue, onBack }: Regist
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           One key for your home
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
-          You’ll share this password. Pick something you’d both remember — and only you two would know.
+        <p className="mt-1.5 text-copy-muted">
+          You’ll share this password. Pick something you’d both remember — and only you two would
+          know.
         </p>
       </div>
 
@@ -63,7 +64,7 @@ export function RegisterStepOneKey({ defaultValues, onContinue, onBack }: Regist
                 onClick={() => setShowPassword((visible) => !visible)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 aria-pressed={showPassword}
-                className="text-sandstone-500 hover:text-sandstone-700"
+                className="text-copy-muted hover:text-sandstone-700"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>

@@ -11,12 +11,9 @@ interface ComingSoonModuleProps {
 export function ComingSoonModule({ title, description, features }: ComingSoonModuleProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="page-header">{title}</h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1">{description}</p>
+        <p className="text-copy-muted mt-1">{description}</p>
       </motion.div>
 
       <motion.div
@@ -32,7 +29,7 @@ export function ComingSoonModule({ title, description, features }: ComingSoonMod
           <h2 className="text-2xl font-medium text-sandstone-800 dark:text-sandstone-200">
             Coming Soon
           </h2>
-          <p className="text-sandstone-500 dark:text-sandstone-400 mt-2 mb-8 text-balance leading-relaxed">
+          <p className="text-copy-muted mt-2 mb-8 text-balance leading-relaxed">
             The {title} module is currently under development.
             <br />
             The architecture is fully in place — ready for implementation.
@@ -45,7 +42,9 @@ export function ComingSoonModule({ title, description, features }: ComingSoonMod
                 className="flex items-center gap-2.5 p-3 rounded-xl bg-sandstone-50 dark:bg-sandstone-900/50 border border-sandstone-100 dark:border-sandstone-800"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-gold-400 flex-shrink-0" />
-                <span className="text-sm text-sandstone-700 dark:text-sandstone-300">{feature}</span>
+                <span className="text-sm text-sandstone-700 dark:text-sandstone-300">
+                  {feature}
+                </span>
               </div>
             ))}
           </div>

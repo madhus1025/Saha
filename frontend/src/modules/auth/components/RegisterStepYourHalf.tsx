@@ -63,7 +63,7 @@ export function RegisterStepYourHalf({ defaultValues, onContinue }: RegisterStep
         <h1 className="font-display text-3xl font-medium text-sandstone-900 dark:text-cream-200">
           First, you
         </h1>
-        <p className="mt-1.5 text-sandstone-600 dark:text-sandstone-400">
+        <p className="mt-1.5 text-copy-muted">
           Your person fills in their own half when they arrive — you never type for them.
         </p>
       </div>

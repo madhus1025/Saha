@@ -17,7 +17,7 @@ export function SettingsPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="page-header">Settings</h1>
-        <p className="text-sandstone-500 dark:text-sandstone-400 mt-1">Personalise your experience</p>
+        <p className="text-copy-muted mt-1">Personalise your experience</p>
       </div>
 
       <Card>
@@ -59,14 +59,27 @@ export function SettingsPage() {
                     : 'border-sandstone-100 dark:border-sandstone-800 hover:border-sandstone-200 dark:hover:border-sandstone-700',
                 )}
               >
-                <Icon className={cn('w-5 h-5', selected ? 'text-gold-600 dark:text-gold-400' : 'text-sandstone-400')} />
-                <span className={cn('text-xs font-medium', selected ? 'text-gold-600 dark:text-gold-400' : 'text-sandstone-500')}>
+                <Icon
+                  className={cn(
+                    'w-5 h-5',
+                    selected ? 'text-gold-600 dark:text-gold-400' : 'text-copy-subtle',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    selected ? 'text-gold-600 dark:text-gold-400' : 'text-copy-muted',
+                  )}
+                >
                   {label}
                 </span>
                 {/* Non-colour indicator: forced-colors and colour-blind users lose the gold tint. */}
                 <Check
                   aria-hidden
-                  className={cn('w-3.5 h-3.5 text-gold-600 dark:text-gold-400', selected ? 'opacity-100' : 'opacity-0')}
+                  className={cn(
+                    'w-3.5 h-3.5 text-gold-600 dark:text-gold-400',
+                    selected ? 'opacity-100' : 'opacity-0',
+                  )}
                 />
               </motion.button>
             )
@@ -76,12 +89,16 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader title="Notifications" subtitle="Coming soon" />
-        <p className="text-sm text-sandstone-400 dark:text-sandstone-500">Notification preferences will be available in a future update.</p>
+        <p className="text-sm text-copy-subtle">
+          Notification preferences will be available in a future update.
+        </p>
       </Card>
 
       <Card>
         <CardHeader title="Privacy & Security" subtitle="Coming soon" />
-        <p className="text-sm text-sandstone-400 dark:text-sandstone-500">Advanced security settings will be available in a future update.</p>
+        <p className="text-sm text-copy-subtle">
+          Advanced security settings will be available in a future update.
+        </p>
       </Card>
     </div>
   )

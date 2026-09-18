@@ -22,7 +22,14 @@ public sealed class CoupleConnectionConfiguration : IEntityTypeConfiguration<Cou
             .HasMaxLength(20);
 
         builder.Property(c => c.CreatedAt).IsRequired();
-        builder.Property(c => c.UpdatedAt).IsRequired();
+        // The status transition is a compare-and-swap operation: two tabs/partners may try to
+        // accept and reject the same pending request at the same time. Including UpdatedAt in the
+        // UPDATE predicate means only the first writer can commit; the repository maps the losing
+        // DbUpdateConcurrencyException to a stable 409 instead of reporting two successful actions.
+        // This is provider-agnostic and uses the existing column, so it needs no schema migration.
+        builder.Property(c => c.UpdatedAt)
+            .IsRequired()
+            .IsConcurrencyToken();
 
         // Unique, not merely indexed. The send handler checks for an existing connection and then
         // inserts; without a database-level constraint two concurrent identical requests can both

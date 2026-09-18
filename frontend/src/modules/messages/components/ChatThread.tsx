@@ -28,14 +28,8 @@ interface ChatThreadProps {
 
 export function ChatThread({ conversationId, detail, onBack, onOpenSettings }: ChatThreadProps) {
   const currentPartnerId = useAuthStore((s) => s.partnerId)
-  const {
-    data,
-    isLoading,
-    isError,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useMessages(conversationId)
+  const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useMessages(conversationId)
   const { sendText, sendMedia, editMessage, deleteMessage, react, removeReaction } =
     useMessagingMutations(conversationId)
 
@@ -98,31 +92,31 @@ export function ChatThread({ conversationId, detail, onBack, onOpenSettings }: C
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-sandstone-100 dark:border-sandstone-800">
         <button className="md:hidden p-1 -ml-1" onClick={onBack} aria-label="Back to conversations">
-          <ArrowLeft className="w-5 h-5 text-sandstone-500" />
+          <ArrowLeft className="w-5 h-5 text-copy-muted" />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-sandstone-900 dark:text-sandstone-100 truncate">
             {title}
           </p>
           {detail && (
-            <p className="text-xs text-sandstone-400 truncate">{participantSummary(detail)}</p>
+            <p className="text-xs text-copy-subtle truncate">{participantSummary(detail)}</p>
           )}
         </div>
         {detail?.type === 'Group' && (
           <button onClick={onOpenSettings} aria-label="Conversation settings" className="p-1.5">
-            <Settings className="w-4.5 h-4.5 text-sandstone-500" />
+            <Settings className="w-4.5 h-4.5 text-copy-muted" />
           </button>
         )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {isLoading && <p className="text-center text-sm text-sandstone-400 py-8">Loading…</p>}
+        {isLoading && <p className="text-center text-sm text-copy-subtle py-8">Loading…</p>}
         {isError && (
           <p className="text-center text-sm text-red-500 py-8">Couldn’t load messages.</p>
         )}
         {!isLoading && !isError && messages.length === 0 && (
-          <p className="text-center text-sm text-sandstone-400 py-16">Say hello 👋</p>
+          <p className="text-center text-sm text-copy-subtle py-16">Say hello 👋</p>
         )}
 
         {hasNextPage && (
@@ -158,7 +152,7 @@ export function ChatThread({ conversationId, detail, onBack, onOpenSettings }: C
       {/* Composer */}
       <div className="border-t border-sandstone-100 dark:border-sandstone-800 p-3">
         {editing && (
-          <div className="flex items-center justify-between mb-2 px-2 text-xs text-sandstone-500">
+          <div className="flex items-center justify-between mb-2 px-2 text-xs text-copy-muted">
             <span>Editing message</span>
             <button
               onClick={() => {
@@ -181,7 +175,7 @@ export function ChatThread({ conversationId, detail, onBack, onOpenSettings }: C
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-sandstone-400 hover:text-forest-600 transition-colors"
+            className="p-2 text-copy-subtle hover:text-forest-600 transition-colors"
             aria-label="Attach media"
             disabled={sendMedia.isPending}
           >
@@ -243,11 +237,16 @@ function MessageBubble({
   return (
     <div className={cn('flex gap-2 group', isOwn ? 'flex-row-reverse' : 'flex-row')}>
       {!isOwn && (
-        <Avatar src={message.senderAvatarUrl} name={message.senderName} size="xs" className="mt-1" />
+        <Avatar
+          src={message.senderAvatarUrl}
+          name={message.senderName}
+          size="xs"
+          className="mt-1"
+        />
       )}
       <div className={cn('max-w-[75%] flex flex-col', isOwn ? 'items-end' : 'items-start')}>
         {!isOwn && (
-          <span className="text-[11px] text-sandstone-400 px-1 mb-0.5">{message.senderName}</span>
+          <span className="text-[11px] text-copy-subtle px-1 mb-0.5">{message.senderName}</span>
         )}
 
         <div className="relative">
@@ -255,7 +254,7 @@ function MessageBubble({
             className={cn(
               'rounded-2xl px-3.5 py-2 text-sm break-words',
               message.isDeleted
-                ? 'italic text-sandstone-400 bg-sandstone-50 dark:bg-sandstone-800/50'
+                ? 'italic text-copy-subtle bg-sandstone-50 dark:bg-sandstone-800/50'
                 : isOwn
                   ? 'bg-forest-600 text-white'
                   : 'bg-sandstone-100 dark:bg-sandstone-800 text-sandstone-900 dark:text-sandstone-100',
@@ -287,7 +286,7 @@ function MessageBubble({
               <button
                 onClick={() => setShowReactions((v) => !v)}
                 aria-label="React"
-                className="p-1 text-sandstone-400 hover:text-forest-600"
+                className="p-1 text-copy-subtle hover:text-forest-600"
               >
                 <SmilePlus className="w-4 h-4" />
               </button>
@@ -295,7 +294,7 @@ function MessageBubble({
                 <button
                   onClick={() => setShowActions((v) => !v)}
                   aria-label="Message actions"
-                  className="p-1 text-sandstone-400 hover:text-forest-600"
+                  className="p-1 text-copy-subtle hover:text-forest-600"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
@@ -372,14 +371,14 @@ function MessageBubble({
                   )}
                 >
                   <span>{reactionEmoji(r.emoji)}</span>
-                  <span className="text-sandstone-500">{r.count}</span>
+                  <span className="text-copy-muted">{r.count}</span>
                 </button>
               )
             })}
           </div>
         )}
 
-        <span className="text-[10px] text-sandstone-400 px-1 mt-0.5">
+        <span className="text-[10px] text-copy-subtle px-1 mt-0.5">
           {relativeTime(message.createdAt)}
           {message.isEdited && !message.isDeleted && ' · edited'}
           {myReaction ? '' : ''}

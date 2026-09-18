@@ -17,7 +17,17 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    { className, label, error, hint, leftIcon: LeftIcon, rightElement, id, tone = 'default', ...props },
+    {
+      className,
+      label,
+      error,
+      hint,
+      leftIcon: LeftIcon,
+      rightElement,
+      id,
+      tone = 'default',
+      ...props
+    },
     ref,
   ) => {
     const gentle = tone === 'gentle'
@@ -32,14 +42,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           >
             {label}
             {props.required && (
-              <span className="ml-0.5 text-red-500" aria-hidden>*</span>
+              <span className="ml-0.5 text-red-500" aria-hidden>
+                *
+              </span>
             )}
           </label>
         )}
 
         <div className="relative">
           {LeftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sandstone-400 pointer-events-none">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-copy-subtle pointer-events-none">
               <LeftIcon className="w-4 h-4" />
             </div>
           )}
@@ -60,9 +72,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
 
           {rightElement && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {rightElement}
-            </div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>
           )}
         </div>
 
@@ -82,10 +92,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
 
         {hint && !error && (
-          <p
-            id={`${inputId}-hint`}
-            className="text-xs text-sandstone-500 dark:text-sandstone-400"
-          >
+          <p id={`${inputId}-hint`} className="text-xs text-copy-muted">
             {hint}
           </p>
         )}

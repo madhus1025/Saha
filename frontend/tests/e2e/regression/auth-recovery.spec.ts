@@ -18,7 +18,11 @@ test.afterAll(async () => {
 })
 
 /** POST a reset attempt with a deliberately wrong code — isolates validator behaviour from the code check. */
-function resetAttempt(api: APIRequestContext, password: string, identifier = ROSTER.madhu.username) {
+function resetAttempt(
+  api: APIRequestContext,
+  password: string,
+  identifier = ROSTER.madhu.username,
+) {
   return api.post(`${API_BASE}/auth/reset-password`, {
     data: {
       togetherIDOrUsername: identifier,
@@ -30,7 +34,20 @@ function resetAttempt(api: APIRequestContext, password: string, identifier = ROS
 }
 
 test.describe('PWR · Forgot password', () => {
-  test('[PWR-001] a valid identifier moves the UI to the "check your email" state', async ({ page }) => {
+  test('[PWR-001] recovery guidance uses neutral examples, never another couple identity', async ({
+    page,
+  }) => {
+    for (const route of ['/forgot-password', '/reset-password']) {
+      await page.goto(route)
+      const identifier = page.getByLabel('Together ID or Username')
+      await expect(identifier).toHaveAttribute('placeholder', 'YOUR-TOGETHER-ID or your_username')
+      await expect(page.locator('body')).not.toContainText(/MADHU-PRIYA|\bmadhu\b/i)
+    }
+  })
+
+  test('[PWR-001] a valid identifier moves the UI to the "check your email" state', async ({
+    page,
+  }) => {
     await page.goto('/forgot-password')
     await page.locator('#together-id-or-username').fill(ROSTER.madhu.username)
     await page.getByRole('button', { name: 'Send reset code' }).click()
@@ -194,7 +211,9 @@ test.describe('PWR · Reset password', () => {
     await expect(confirmPassword).toHaveValue('ValidPass1!')
   })
 
-  test('[PWR-013] a 500 from the reset API keeps the identifier and allows retry', async ({ page }) => {
+  test('[PWR-013] a 500 from the reset API keeps the identifier and allows retry', async ({
+    page,
+  }) => {
     await page.route('**/auth/reset-password', (route) =>
       route.fulfill({
         status: 500,
