@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const websiteFiles = new Set([
   'frontend/public/staticwebapp.config.json',
+  'frontend/playwright.config.ts',
   'frontend/scripts/arrivo-deploy-scope.mjs',
   'frontend/tests/arrivo-site.test.js',
   'frontend/tests/e2e/arrivo.spec.ts',

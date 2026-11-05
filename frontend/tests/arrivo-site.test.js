@@ -37,13 +37,18 @@ describe('Arrivo static website', () => {
   it.each(pages)('routes %s anonymously without replacing existing Saha routing', (route) => {
     expect(config.routes).toEqual(
       expect.arrayContaining([
-        { route: route.slice(0, -1), redirect: route, statusCode: 301 },
         { route, rewrite: `${route}index.html`, allowedRoles: ['anonymous'] },
       ]),
     )
+    expect(config.trailingSlash).toBe('auto')
     expect(config.navigationFallback.rewrite).toBe('/index.html')
     expect(config.responseOverrides['404']).toEqual({ rewrite: '/index.html', statusCode: 200 })
     expect(config.navigationFallback.exclude).toContain('/arrivo/*')
+  })
+
+  it('does not declare duplicate routes after Azure normalizes trailing slashes', () => {
+    const routes = config.routes.map(({ route }) => route.replace(/\/$/, ''))
+    expect(new Set(routes).size).toBe(routes.length)
   })
 })
 
@@ -51,6 +56,7 @@ describe('website-only deployment scope', () => {
   it.each([
     ['frontend/public/arrivo/privacy/index.html'],
     ['frontend/public/staticwebapp.config.json'],
+    ['frontend/playwright.config.ts'],
     ['.github/workflows/arrivo-site.yml'],
     [
       'frontend/public/arrivo/index.html',

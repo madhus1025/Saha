@@ -42,8 +42,11 @@ GoDaddy site instead of forwarding; publishing this repository does not change
 GoDaddy DNS or forwarding. The owner approved the www URLs for Arrivo.
 
 [Azure route configuration](../../frontend/public/staticwebapp.config.json)
-maps each canonical path to its actual HTML document, redirects the no-slash
-aliases, and preserves Saha's existing SPA fallback. An HTTP 200 alone is not
+maps each canonical path to its actual HTML document and uses Azure's
+`trailingSlash: auto` to canonicalize real directories, while retaining Saha's
+existing SPA fallback. Azure normalizes `/arrivo` and `/arrivo/` when matching
+rules: declaring both as separate routes is invalid, not a valid redirect pair.
+An HTTP 200 alone is not
 proof that a privacy page exists: the fallback can otherwise serve the Saha app.
 
 [Arrivo Website](../../.github/workflows/arrivo-site.yml) builds, tests and publishes
@@ -81,6 +84,13 @@ When changing policy/contact/URLs, keep the app's offline policy, support link
 and store metadata aligned. The native source package includes
 `build_site.py --publish` and `--check --publish` to generate/check this copy;
 the website build itself does not depend on Xcode or the native source tree.
+
+Local/CI browser tests serve a fresh production build through Vite preview.
+Vite's development server falls back to the SPA for these public directory
+indexes, so using it would not test the actual published documents.
+The deployment uses Microsoft's documented `production_branch` input to select
+the production environment of each separate Static Web App; the action's older
+input manifest may warn about that documented runtime option.
 
 Full-stack CD's `provision` job (not Arrivo Website) runs an **idempotent `az group create`**, so a brand-new environment no longer
 fails on a missing resource group — provided the service principal can create resource groups (see

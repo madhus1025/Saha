@@ -6,6 +6,7 @@ on:
     paths:
       - 'frontend/public/arrivo/**'
       - 'frontend/public/staticwebapp.config.json'
+      - 'frontend/playwright.config.ts'
       - 'frontend/scripts/arrivo-deploy-scope.mjs'
       - 'frontend/tests/arrivo-site.test.js'
       - 'frontend/tests/e2e/arrivo.spec.ts'
@@ -109,6 +110,7 @@ jobs:
           action: upload
           app_location: frontend/dist
           skip_app_build: true
+          # Each branch targets a separate app's production environment, not a preview URL.
           production_branch: ${{ github.ref_name }}
       - name: Install smoke-test browser
         working-directory: frontend

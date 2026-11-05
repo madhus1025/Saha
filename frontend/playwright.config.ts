@@ -2,15 +2,16 @@ import { defineConfig, devices } from '@playwright/test'
 
 const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173'
 
-// Start a local dev server only when the target is local (CI e2e + local dev). When pointed at a
+// Start a local preview only when the target is local (CI e2e + local checks). When pointed at a
 // deployed URL (CD smoke tests against FRONTEND_URL), hit that URL directly with no local server.
-const isLocalTarget = /localhost|127\.0\.0\.1/.test(baseURL)
+const target = new URL(baseURL)
+const isLocalTarget = ['localhost', '127.0.0.1'].includes(target.hostname)
 
 export default defineConfig({
   testDir: './tests/e2e',
   // Suites that need a live backend run under their own configs (playwright.real.config.ts /
   // playwright.comprehensive.config.ts / playwright.regression.config.ts), not here — this default
-  // config only starts Vite, so they would fail in the CI e2e job. Keep this config to the
+  // config only serves the built frontend, so they would fail in the CI e2e job. Keep this config to the
   // mock-backed suites + smoke tests.
   testIgnore: ['**/integration/**', '**/real/**', '**/comprehensive/**', '**/regression/**'],
   fullyParallel: true,
@@ -36,7 +37,8 @@ export default defineConfig({
 
   webServer: isLocalTarget
     ? {
-        command: 'npm run dev',
+        // Vite dev falls back to the SPA for public directory indexes; test the built artifact.
+        command: `npm run build && npm run preview -- --host ${target.hostname} --port ${target.port || '5173'} --strictPort`,
         url: baseURL,
         reuseExistingServer: !process.env['CI'],
         timeout: 120_000,
