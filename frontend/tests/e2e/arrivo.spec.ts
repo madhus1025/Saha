@@ -12,31 +12,40 @@ test.describe('Arrivo public website', () => {
   ]
 
   for (const entry of pages) {
-    test(`@smoke ${entry.path} serves the actual public document without login`, async ({
-      page,
-    }) => {
-      const response = await page.goto(entry.path)
-      expect(response?.status()).toBe(200)
-      await expect(page).toHaveTitle(entry.title)
-      await expect(page.getByRole('heading', { level: 1, name: entry.heading })).toBeVisible()
-      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-        'href',
-        `https://www.wesaha.com${entry.path}`,
-      )
-      await expect(page.locator('script, iframe, form')).toHaveCount(0)
-      await page.setViewportSize({ width: 390, height: 844 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
-      )
-      for (const image of await page.locator('img').all()) {
-        expect(
-          await image.evaluate(
-            (element) =>
-              element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0,
-          ),
-        ).toBe(true)
-      }
-    })
+    for (const path of [entry.path, entry.path.slice(0, -1)]) {
+      test(`@smoke ${path} serves the actual public document without login`, async ({
+        page,
+        baseURL,
+      }) => {
+        test.skip(
+          path !== entry.path &&
+            baseURL !== undefined &&
+            ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname),
+          'Slashless rewrites are Azure-specific and run against the deployed site, not Vite preview.',
+        )
+        const response = await page.goto(path)
+        expect(response?.status()).toBe(200)
+        await expect(page).toHaveTitle(entry.title)
+        await expect(page.getByRole('heading', { level: 1, name: entry.heading })).toBeVisible()
+        await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+          'href',
+          `https://www.wesaha.com${entry.path}`,
+        )
+        await expect(page.locator('script, iframe, form')).toHaveCount(0)
+        await page.setViewportSize({ width: 390, height: 844 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        )
+        for (const image of await page.locator('img').all()) {
+          expect(
+            await image.evaluate(
+              (element) =>
+                element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0,
+            ),
+          ).toBe(true)
+        }
+      })
+    }
   }
 
   test('@smoke public policy and support navigation works independently of the Saha app', async ({

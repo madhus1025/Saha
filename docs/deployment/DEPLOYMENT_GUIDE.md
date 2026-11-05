@@ -42,12 +42,13 @@ GoDaddy site instead of forwarding; publishing this repository does not change
 GoDaddy DNS or forwarding. The owner approved the www URLs for Arrivo.
 
 [Azure route configuration](../../frontend/public/staticwebapp.config.json)
-maps each canonical path to its actual HTML document and uses Azure's
-`trailingSlash: auto` to canonicalize real directories, while retaining Saha's
-existing SPA fallback. Azure normalizes `/arrivo` and `/arrivo/` when matching
-rules: declaring both as separate routes is invalid, not a valid redirect pair.
-An HTTP 200 alone is not
-proof that a privacy page exists: the fallback can otherwise serve the Saha app.
+maps each canonical path to its actual HTML document and retains Saha's existing
+SPA fallback and trailing-slash behavior. Azure normalizes `/arrivo` and `/arrivo/`
+when matching rules: declaring both separately is invalid. Explicit rewrites can
+also bypass `trailingSlash: auto`, so assets/navigation use root-relative
+`/arrivo/...` URLs and work with either spelling. Canonical metadata prefers the
+slash-terminated URLs. An HTTP 200 alone is not proof that a privacy page exists:
+the fallback can otherwise serve the Saha app.
 
 [Arrivo Website](../../.github/workflows/arrivo-site.yml) builds, tests and publishes
 the frontend for Arrivo-only pushes to `main` (production) or `develop` (staging).
@@ -87,7 +88,9 @@ the website build itself does not depend on Xcode or the native source tree.
 
 Local/CI browser tests serve a fresh production build through Vite preview.
 Vite's development server falls back to the SPA for these public directory
-indexes, so using it would not test the actual published documents.
+indexes, so using it would not test the actual published documents. The three
+slashless-rewrite cases are explicitly Azure-only: local preview skips them, and
+the post-deployment job runs all ten public/existing-site smoke checks on Azure.
 The deployment uses Microsoft's documented `production_branch` input to select
 the production environment of each separate Static Web App; the action's older
 input manifest may warn about that documented runtime option.

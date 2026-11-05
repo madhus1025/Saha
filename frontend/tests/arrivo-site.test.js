@@ -27,7 +27,11 @@ describe('Arrivo static website', () => {
     for (const element of document.querySelectorAll('a[href], link[href], img[src]')) {
       const target = element.getAttribute('href') ?? element.getAttribute('src')
       if (!target || target.startsWith('#') || /^(https?:|mailto:)/.test(target)) continue
-      const local = resolve(publicRoot, `.${route}`, target)
+      expect(
+        target,
+        'Rewritten slashless URLs must not change asset/navigation resolution',
+      ).toMatch(/^\/arrivo\//)
+      const local = resolve(publicRoot, `.${target}`)
       expect(existsSync(target.endsWith('/') ? resolve(local, 'index.html') : local), target).toBe(
         true,
       )
@@ -40,7 +44,7 @@ describe('Arrivo static website', () => {
         { route, rewrite: `${route}index.html`, allowedRoles: ['anonymous'] },
       ]),
     )
-    expect(config.trailingSlash).toBe('auto')
+    expect(config.trailingSlash).toBeUndefined()
     expect(config.navigationFallback.rewrite).toBe('/index.html')
     expect(config.responseOverrides['404']).toEqual({ rewrite: '/index.html', statusCode: 200 })
     expect(config.navigationFallback.exclude).toContain('/arrivo/*')

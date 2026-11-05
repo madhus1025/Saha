@@ -1,6 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "trailingSlash": "auto",
   "routes": [
     { "route": "/arrivo/", "rewrite": "/arrivo/index.html", "allowedRoles": ["anonymous"] },
     {
