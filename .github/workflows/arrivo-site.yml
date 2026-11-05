@@ -1,0 +1,126 @@
+name: Arrivo Website
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend/public/arrivo/**'
+      - 'frontend/public/staticwebapp.config.json'
+      - 'frontend/scripts/arrivo-deploy-scope.mjs'
+      - 'frontend/tests/arrivo-site.test.js'
+      - 'frontend/tests/e2e/arrivo.spec.ts'
+      - '.github/workflows/arrivo-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arrivo-website-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: rg-saha-${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+  STATIC_WEB_APP: stapp-saha-${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+
+jobs:
+  scope:
+    name: Check website-only scope
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.scope.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Leave mixed app changes to full-stack CD
+        id: scope
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::notice::An initial branch requires a full-stack deployment before website-only publishing."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+            git diff --name-only -z "$BEFORE_SHA" "$GITHUB_SHA" \
+              | node frontend/scripts/arrivo-deploy-scope.mjs >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish website without backend changes
+    needs: scope
+    if: needs.scope.outputs.deploy == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked website dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Validate public pages and deployment scope
+        working-directory: frontend
+        run: npm run test -- tests/arrivo-site.test.js
+      - name: Build website
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_APP_TITLE: Saha
+      - name: Azure login for the existing website
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Get website deployment token
+        id: token
+        run: |
+          set -euo pipefail
+          TOKEN=$(az staticwebapp secrets list \
+            --name "$STATIC_WEB_APP" --resource-group "$RESOURCE_GROUP" \
+            --query "properties.apiKey" --output tsv)
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Azure returned no Static Web App deployment token."
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "value=$TOKEN" >> "$GITHUB_OUTPUT"
+      - name: Publish existing Azure Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend/dist
+          skip_app_build: true
+          production_branch: ${{ github.ref_name }}
+      - name: Install smoke-test browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Verify live Arrivo pages and existing Saha routes
+        working-directory: frontend
+        run: npx playwright test tests/e2e/arrivo.spec.ts tests/e2e/smoke.spec.ts --project=chromium --workers=1
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ github.ref == 'refs/heads/main' && 'https://www.wesaha.com' || secrets.FRONTEND_URL }}
+      - name: Save browser verification evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arrivo-website-smoke-report
+          path: frontend/playwright-report/

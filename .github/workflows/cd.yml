@@ -5,6 +5,15 @@ on:
     # main -> prod, develop -> staging (see the DEPLOY env resolution below). A manual
     # workflow_dispatch can target either environment explicitly.
     branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - 'infrastructure/**'
+      - 'frontend/**'
+      - '!frontend/public/arrivo/**'
+      - '!frontend/public/staticwebapp.config.json'
+      - '!frontend/scripts/arrivo-deploy-scope.mjs'
+      - '!frontend/tests/arrivo-site.test.js'
+      - '!frontend/tests/e2e/arrivo.spec.ts'
   workflow_dispatch:
     inputs:
       environment:

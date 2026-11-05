@@ -22,9 +22,67 @@ The `CD` workflow deploys to one of two environments; the target is derived from
 | push to `develop` | **staging** | `rg-saha-staging` | `app-saha-api-staging` | `stapp-saha-staging` |
 | manual `workflow_dispatch` | chosen (`prod`/`staging`) | `rg-saha-<env>` | `app-saha-api-<env>` | `stapp-saha-<env>` |
 
-Run a manual deploy with `gh workflow run cd.yml -f environment=staging` (or `prod`).
+Run a manual full-stack deploy with `gh workflow run cd.yml -f environment=staging`
+(or `prod`). Push-triggered full-stack CD now watches backend, infrastructure and
+frontend application changes. Arrivo-only static-site changes use the separate
+workflow below; documentation/workflow-only changes do not automatically deploy
+the backend or database.
 
-The `provision` job runs an **idempotent `az group create`**, so a brand-new environment no longer
+## Arrivo public pages
+
+The versioned [static website](../../frontend/public/arrivo/) is copied unchanged
+into the Vite build. It is not a React route and does not require login:
+
+- <https://www.wesaha.com/arrivo/>
+- <https://www.wesaha.com/arrivo/privacy/>
+- <https://www.wesaha.com/arrivo/support/>
+
+Use the **www** host. On 2026-11-05 the bare `wesaha.com` still served a separate
+GoDaddy site instead of forwarding; publishing this repository does not change
+GoDaddy DNS or forwarding. The owner approved the www URLs for Arrivo.
+
+[Azure route configuration](../../frontend/public/staticwebapp.config.json)
+maps each canonical path to its actual HTML document, redirects the no-slash
+aliases, and preserves Saha's existing SPA fallback. An HTTP 200 alone is not
+proof that a privacy page exists: the fallback can otherwise serve the Saha app.
+
+[Arrivo Website](../../.github/workflows/arrivo-site.yml) builds, tests and publishes
+the frontend for Arrivo-only pushes to `main` (production) or `develop` (staging).
+It performs no infrastructure provisioning, database migration or backend deploy.
+Mixed changes to frontend application code, backend or infrastructure stay with
+the existing full-stack CD workflow; the site-only workflow skips them to avoid
+racing two deployments. Scope decisions are tested alongside the public files.
+
+Manual website-only publication from the approved branch:
+
+```bash
+gh workflow run arrivo-site.yml --ref main
+```
+
+The existing GitHub OIDC identity needs Contributor on the **specific Static Web
+App resource**, not on the resource group or subscription. Production targets
+`stapp-saha-prod`; staging retains its existing access. This site-scoped grant
+does not repair or broaden the legacy full-stack production identity's permissions.
+Deployment tokens are fetched at runtime, masked, and never committed.
+
+Validation:
+
+```bash
+cd frontend
+npm run test -- tests/arrivo-site.test.js
+npm run build
+PLAYWRIGHT_BASE_URL=https://www.wesaha.com \
+  npx playwright test tests/e2e/arrivo.spec.ts tests/e2e/smoke.spec.ts \
+  --project=chromium --workers=1
+```
+
+These pages are a published snapshot of Arrivo's native release materials.
+When changing policy/contact/URLs, keep the app's offline policy, support link
+and store metadata aligned. The native source package includes
+`build_site.py --publish` and `--check --publish` to generate/check this copy;
+the website build itself does not depend on Xcode or the native source tree.
+
+Full-stack CD's `provision` job (not Arrivo Website) runs an **idempotent `az group create`**, so a brand-new environment no longer
 fails on a missing resource group — provided the service principal can create resource groups (see
 the permission note below). Each environment needs its own Azure resources, a matching OIDC
 federated credential, and (if you scope secrets per environment) its own GitHub Environment secrets.

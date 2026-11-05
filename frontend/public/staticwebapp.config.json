@@ -1,8 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "routes": [
+    { "route": "/arrivo", "redirect": "/arrivo/", "statusCode": 301 },
+    { "route": "/arrivo/", "rewrite": "/arrivo/index.html", "allowedRoles": ["anonymous"] },
+    { "route": "/arrivo/privacy", "redirect": "/arrivo/privacy/", "statusCode": 301 },
+    {
+      "route": "/arrivo/privacy/",
+      "rewrite": "/arrivo/privacy/index.html",
+      "allowedRoles": ["anonymous"]
+    },
+    { "route": "/arrivo/support", "redirect": "/arrivo/support/", "statusCode": 301 },
+    {
+      "route": "/arrivo/support/",
+      "rewrite": "/arrivo/support/index.html",
+      "allowedRoles": ["anonymous"]
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{css,js,svg,png,jpg,jpeg,gif,ico,json,txt,woff,woff2}"]
+    "exclude": [
+      "/arrivo/*",
+      "/assets/*",
+      "/*.{css,js,svg,png,jpg,jpeg,gif,ico,json,txt,woff,woff2}"
+    ]
   },
   "responseOverrides": {
     "404": {
