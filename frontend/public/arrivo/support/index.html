@@ -18,6 +18,7 @@
   <main id="main" class="wrap"><article class="prose">
     <p class="eyebrow">A little help for the journey</p>
     <h1>Arrivo Support</h1>
+    <p class="notice">Driving distance and sound advisories described below apply to version 1.0.1 and later. If your storefront still offers version 1.0, these changes are not available yet.</p>
     <p>Contact <a href="mailto:madhu@wesaha.com?subject=Arrivo%20support">madhu@wesaha.com</a> for help. Include your iPhone model, iOS version, app version, and what you expected to happen. Please do not send passwords, payment information, precise home addresses, or your full alarm database.</p>
     <h2>What does Enable mean?</h2>
     <p>Enable turns on a one-time arrival alert. It does not ring immediately. Disable turns that alarm off. You can save and enable up to ten alarms independently.</p>
@@ -25,17 +26,21 @@
     <p>You were already inside the arrival area when the alarm started. Arrivo waits until iPhone detects that you have left, then entered again, to avoid surprising you with an alert when enabling it.</p>
     <h2>Why did I not hear an alert?</h2>
     <p>Arrivo uses standard local notifications, not a continuously ringing alarm. Check Settings &gt; Notifications &gt; Arrivo for alerts and sounds. Also check Silent mode, Focus, volume, Lock Screen permissions, and your audio output. A visible banner is not proof that a sound was audible. Detection or delivery may be delayed or missed.</p>
+    <h2>What does the sound advisory measure?</h2>
+    <p>Media/output volume at 20% or lower, supported app-audio mute, or disabled notification sounds can raise an advisory. Media volume is not notification or ringer volume. App-audio mute is not the Silent switch and does not mute iOS notification sounds. Arrivo cannot reliably inspect Silent mode, Focus or Ringer &amp; Alerts volume. With enabled alarms it requests at most one generic warning per observed risk episode. Checks run while active and on return, not continuously while suspended; Simulator output is unavailable.</p>
     <h2>What permissions are needed?</h2>
-    <p>Enable Always and Precise Location for background arrival detection, and allow notifications. Foreground distance viewing can request location access separately. If permission is restricted by a parent, organization, or device policy, that restriction must be resolved outside the app.</p>
+    <p>Enable Always and Precise Location for background arrival detection, and allow notifications. Once granted, location access appears as a status, not another enable action. Monitoring readiness is separate. Use my location requests foreground distance access in context. If permission is restricted by a parent, organization, or device policy, that restriction must be resolved outside the app.</p>
     <h2>Monitoring needs attention</h2>
     <p>Check location and notification permissions, Location Services, Background App Refresh, and Low Power Mode. Return to the app and use Retry on the affected alarm. Reopen Arrivo after force-quitting or restarting your iPhone. A saved alarm alone is not proof that iOS is monitoring it.</p>
     <h2>How does combined arrival work?</h2>
     <p>Arrival reports within five seconds can share a notification with their destination names. Stop acknowledges the included arrivals without disabling unrelated alarms. Each completed alarm stays saved but off until you enable it again. iOS controls delivery timing.</p>
     <h2>Why is distance unavailable?</h2>
-    <p>Distance requires a fresh, sufficiently accurate foreground location. Try outdoors, enable Precise Location, and select Retry location. The value is approximate straight-line distance to the destination center, not driving distance or an exact boundary measurement.</p>
+    <p>Cards and details show approximate driving kilometres to the destination center, not an exact boundary measurement. Apple Maps needs a fresh, sufficiently accurate foreground location and internet access. Estimates refresh initially and after movement, at most once a minute per alarm; their timestamp identifies reused values. Hidden screens and backgrounding stop distance-only work. Try outdoors or enable Precise Location for a poor fix. If a route fails, open the alarm and choose Retry driving route; retry still respects the one-minute limit. An unavailable route is never silently replaced with straight-line distance.</p>
+    <h2>Why can a place search return no results?</h2>
+    <p>Apple Maps may not index the place under that name. Try a nearby town or fuller address, choose the point on the map, or enter coordinates. No match is different from an offline, busy or failed search service.</p>
     <h2>Editing, deleting, and privacy</h2>
     <p>Editing an enabled alarm keeps it enabled with a fresh starting-position check. Delete removes only the chosen alarm. Arrivo does not keep a movement trail or automatically upload your saved places. See the <a href="/arrivo/privacy/">privacy policy</a> for Apple services, notification previews, backups, and voluntary support email.</p>
-    <p class="notice">Arrivo is still being prepared for public release. Do not use a development or beta build for safety-critical reminders.</p>
+    <p class="notice">Do not rely on Arrivo for safety-critical reminders, whether using an App Store, development, or beta build.</p>
   </article></main>
   <footer><div class="wrap"><a href="/arrivo/">Arrivo home</a> &middot; Operated by Madhu Avinash &middot; <a href="mailto:madhu@wesaha.com">madhu@wesaha.com</a></div></footer>
 </body>
